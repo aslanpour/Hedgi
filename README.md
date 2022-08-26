@@ -1,4 +1,4 @@
-# edgi
+# Hedgi
 Serverless Computing for AI at the Heterogeneous Edge
 
 **To be developed:**
