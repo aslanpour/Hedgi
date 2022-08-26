@@ -1,6 +1,8 @@
 # edgi
 Serverless Computing for AI at the Heterogeneous Edge
-#To be developed
+
+**To be developed:**
+
 A software system for edge computing with the following considerations:
 - Edge nodes (say nodes) are single-board computers such as Raspberry Pi and NVIDIA Jetson Nano,
 - Accelerator devices such as Google Coral TPU can help a node,
