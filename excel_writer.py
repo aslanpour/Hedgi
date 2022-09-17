@@ -54,6 +54,7 @@ def write_avg(rows_count, excel_file_path):
 
     return new_row
 
+#scheduler sheet
 def write_scheduler(metrics, excel_file_path):
     lock = threading.Lock()
     with lock:
@@ -113,7 +114,8 @@ def write_scheduler(metrics, excel_file_path):
         #save
         wb.save(filename = excel_file_path)
         wb.close()
-        
+
+
 #write metrics
 def write(metrics, excel_file_path):
     result = "null"
@@ -125,7 +127,8 @@ def write(metrics, excel_file_path):
             write_scheduler(metrics, excel_file_path)
         except Exception as e:
             print('write_scheduler:' + str(e))
-        
+
+    #write nodes  
     lock = threading.Lock()
     with lock:
         try:
@@ -157,7 +160,7 @@ def write(metrics, excel_file_path):
         print('info')
         print(row)
         
-        #node F G H I J K L M N O P Q
+        #node F G H I J K L M N O P Q R
         row.extend([metrics["node"]["name"],
                   metrics["node"]["power_usage"],
                   metrics["node"]["down_time"]["minute"],
@@ -167,21 +170,26 @@ def write(metrics, excel_file_path):
                   metrics["node"]["cpu_usage_up"]["avg"],
                   metrics["node"]["cpu_usage_up"]["max"],
                   metrics["node"]["cpuFreq"]["avg"],
-                  metrics["node"]["cpuFreq"]["min"],
-                  metrics["node"]["cpuFreq"]["max"],
+                #   metrics["node"]["cpuFreq"]["min"],
+                #   metrics["node"]["cpuFreq"]["max"],
                   metrics["node"]["memory_usage"]["avg"],
                   metrics["node"]["memory_usage"]["max"],
                   metrics["node"]["bw_usage"]["sent_mb"],
                   metrics["node"]["bw_usage"]["recv_mb"]])
 
-        #apps R S T U V W X Y Z AA ... AX
+        #splitter S
+        row.extend(['**end node**'])
+
+        #apps T U V W X Y Z AA ... AX
         #if node has been LOAD_GENERATOR OR STANDALONE
         if "app_order" in metrics:
             #and has had enabled app
             if len(metrics["app_order"]):
                 for app in metrics["app_order"]:
-
+                    print(metrics[app])
+                    #T --> app name: first app is "app_overall"
                     row.extend([app])
+                    # T .. AX
                     row.extend([metrics[app]["created"],
                               metrics[app]["sent"]["sum"],
                               metrics[app]["sent"]["percent"],
@@ -225,7 +233,13 @@ def write(metrics, excel_file_path):
                               metrics[app]["percentiles_suc_fail"]["p95"],
                               metrics[app]["percentiles_suc_fail"]["p99"],
                               metrics[app]["percentiles_suc_fail"]["p99.9"],
-                              metrics[app]["percentiles_suc_fail"]["p100"]])
+                              metrics[app]["percentiles_suc_fail"]["p100"],
+                              metrics[app]["detected_objects"]["sum"],
+                              metrics[app]["detected_objects"]["avg"],
+                              metrics[app]["detected_objects"]["accuracy_avg"]])
+
+                    #splitter R
+                    row.extend(['**end app**'])
 
         
         #append to excel
@@ -248,5 +262,19 @@ def write(metrics, excel_file_path):
         #save
         wb.save(filename = excel_file_path)
         wb.close()
-        
+
+        #append to CSV file
+        csv_file_path = excel_file_path.split('.')[0] + '.csv'
+        csv_write(csv_file_path, [row])
+
+
         return 'success', current_row
+
+#append to csv file
+def csv_write(csv_file_path, data):
+    import numpy as np
+    #!/usr/bin/env python3
+
+    csv_file = open(csv_file_path, 'ab')
+    np.savetxt(csv_file, data, delimiter=",", fmt="%s")
+    csv_file.close()
