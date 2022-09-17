@@ -4,7 +4,7 @@ import getpass
 #epoch driver
 test_name = ['test']
 
-test_duration= 5 * 60 #####
+test_duration= 10 * 60 #####
 #[0] position (e.g.,COORDINATOR, PEER, or -) [1] node (host) name [2] node ip
 #for scheduling, max 5 nodes are considered.
 nodes=[["COORDINATOR","master","10.0.0.90"],
@@ -12,26 +12,71 @@ nodes=[["COORDINATOR","master","10.0.0.90"],
        ["www", "w2","10.0.0.92"],
        ["www", "w3","10.0.0.93"],
        ["www", "w4","10.0.0.94"],
-       ["PEER", "w5","10.0.0.95"],
+       ["www", "w5","10.0.0.95"],
        ["www", "w6","10.0.0.96"],
-       ["www", "w7","10.0.0.97"],]
-gateway_IP = "10.0.0.90"
+       ["PEER", "w7","10.0.0.97"],]
 
-accelerators = {'w1': [], 'w2': [], 'w3': [], 'w4': [], 'w5': ['gpu'], 'w6': [], 'w7': []}
+accelerators = {'w1': [], 'w2': [], 'w3': [], 'w4': [], 'w5': ['gpu', 'tpu'], 'w6': [], 'w7': []}
 
 #load balancing
+gateway_function = {
+    'api_version': 'openfaas.com/v1',
+    'kind': 'Function', 
+    'object_name': 'gw-func',
+    'namespace': 'openfaas-fn',
+    'image': 'aslanpour/ssd:cpu-tpu-amd64',
+    'labels': {'com.openfaas.scale.min': '1',
+                'com.openfaas.scale.max': '1'},
+    'annotations': {'linkerd.io/inject': 'enabled'},
+    'constraints': ['kubernetes.io/hostname=master']}
+#'image': 'ghcr.io/openfaas/nodeinfo:latest'
+
+#backends ???only for ssd apps
+backends = [{'service': node[1] + '-' + 'ssd', 'weight': 1000} for node in nodes if node[0] == 'PEER']
+# backends = [{'service':'w4-ssd','weight': 1000}, {'service':'w5-ssd','weight': 1000}]
+#note: service_mesh paramter must be True. backends must contain nodes that are part of the test. Backends service name must be equal to functions name.
 load_balancing = [
-    {'interval': 60,
+    {'type': 'trafficsplit',
+    'interval': 60,
     'algorithm': 'even',
     'accelerators': accelerators, 
-    'backends':[{'ssd-w1': 1000}, {'ssd-w2': 1000}, {'ssd-w3': 1000}, {'ssd-w4': 1000}, {'ssd-w5': 1000}],
+    'backends': backends,
     'api_version': 'split.smi-spec.io/v1alpha2',
     'kind': 'TrafficSplit', 
     'object_name': 'my-traffic-split',
     'namespace': 'openfaas-fn',
-    'service': 'ssd-main',
-    'operation': 'safe_replace'},
+    'service': gateway_function['object_name'],
+    'operation': 'safe-patch',
+    'gateway_function': gateway_function}
 ]
+
+#NOTE if True, queues must be already created! and follows the name pattern as queue-worker-functionName
+multiple_queue=False
+#if true, Linkerd is required for OpenFaaS
+service_mesh=True
+
+gateway_IP = "10.0.0.90"
+openfaas_gateway_port = "31112"
+redis_server_ip= "10.43.189.161" #assume default port is selected as 3679
+#??routes can replace gateway_IP, openfaas_gateway_port, redis_server_ip
+routes = [{'gateway_IP': '10.0.0.90', 
+        'openfaas_gateway_port': '31112', 
+        'function_route': load_balancing[0]['service'] if load_balancing[0]['type'] == 'trafficsplit' else 'func_name',
+        'redis_server_ip': '10.43.189.161'},
+        # {'gateway_IP': '10.0.0.90', 
+        # 'openfaas_gateway_port': '31112', 
+        # 'function_route': load_balancing[1]['service'] if load_balancing[1]['type'] == 'trafficsplit' else 'func_name',
+        # 'redis_server_ip': '10.43.189.161'},
+        # {'gateway_IP': '10.0.0.90', 
+        # 'openfaas_gateway_port': '31112', 
+        # 'function_route': load_balancing[2]['service'] if load_balancing[2]['type'] == 'trafficsplit' else 'func_name',
+        # 'redis_server_ip': '10.43.189.161'},
+        # {'gateway_IP': '10.0.0.90', 
+        # 'openfaas_gateway_port': '31112', 
+        # 'function_route': load_balancing[3]['service'] if load_balancing[3]['type'] == 'trafficsplit' else 'func_name',
+        # 'redis_server_ip': '10.43.189.161'},
+        ]
+
 
 #local #default-kubernetes #random #bin-packing #greedy #shortfaas
 scheduler_name = ["local"]
@@ -68,9 +113,11 @@ cpu_freq_config={"effect": ["LOAD_GENERATOR", "STANDALONE"],"governors": "ondema
     "set_min_frequencies": 0, "set_max_frequencies": 0, "set_frequencies": 600000}
 
 cpu_governor = ['ondemand', 'ondemand', 'ondemand']
-
+#??????????????????image name has gpu
 apps = {"ssd": True, "yolo3": False, "irrigation":False, "crop-monitor": False, "short": False}
 apps_image = {"ssd": "aslanpour/ssd:cpu-tpu", "yolo3": "aslanpour/yolo3-quick", "irrigation":"aslanpour/irrigation", "crop-monitor": "aslanpour/crop-monitor", "short": "aslanpour/short"}
+
+#[WORKLOAD]
 #"static" or "poisson" (concurrently) or "exponential" (interval) or "exponential-poisson"
 Workload_type ="static"
 worker = "thread"  # or "gevent": low CPU usage (~5% improvement) but slower admission (0.098s vs 0.1s) and super difference between the max values.
@@ -95,10 +142,10 @@ workload_cfg ={
 "w1":[[1000, 5, 1,seed, shapes["w1"],worker], [10000, 6, 1.9,seed, shapes["w1"],worker], [10000, 10, 1,seed, shapes["w1"],worker], [10000, 1, 1,seed, shapes["w1"],worker], [10000, 1, 1,seed, shapes["w1"],worker]],
 "w2":[[1000, 5, 1,seed, shapes["w2"],worker], [10000, 20, 1.9,seed, shapes["w2"],worker], [10000, 15, 1.0,seed, shapes["w2"],worker], [10000, 1, 1,seed, shapes["w2"],worker], [10000, 1, 1,seed, shapes["w2"],worker]],
 "w3":[[1000, 60, 0.6,seed, shapes["w3"],worker], [10000, 10, 1.9,seed, shapes["w3"],worker], [10000, 8, 1.0,seed, shapes["w3"],worker], [10000, 10, 1,seed, shapes["w3"],worker], [10000, 10, 1,seed, shapes["w3"],worker]],
-"w4":[[1000, 60, 0.6,seed, shapes["w4"],worker], [10000, 10, 1.9,seed, shapes["w4"],worker], [10000, 8, 1.0,seed, shapes["w4"],worker], [10000, 10, 1,seed, shapes["w4"],worker], [10000, 10, 1,seed, shapes["w4"],worker]],
+"w4":[[1000, 1, 1,seed, shapes["w4"],worker], [10000, 10, 1.9,seed, shapes["w4"],worker], [10000, 8, 1.0,seed, shapes["w4"],worker], [10000, 10, 1,seed, shapes["w4"],worker], [10000, 10, 1,seed, shapes["w4"],worker]],
 "w5":[[1000, 1, 1,seed, shapes["w5"],worker], [10000, 6, 1.9,seed, shapes["w5"],worker], [10000, 5, 1.0,seed, shapes["w5"],worker], [10000, 10, 1,seed, shapes["w5"],worker], [10000, 10, 1,seed, shapes["w5"],worker]],
 "w6":[[1000, 1, 1,seed, shapes["w6"],worker], [10000, 6, 1.9,seed, shapes["w6"],worker], [10000, 5, 1.0,seed, shapes["w6"],worker], [10000, 10, 1,seed, shapes["w6"],worker], [10000, 10, 1,seed, shapes["w6"],worker]],
-"w7":[[1000, 1, 0.6,seed, shapes["w7"],worker], [10000, 6, 1.9,seed, shapes["w7"],worker], [10000, 5, 1.0,seed, shapes["w7"],worker], [10000, 10, 1,seed, shapes["w7"],worker],[10000, 10, 1,seed, shapes["w7"],worker]],}
+"w7":[[1000, 1, 1,seed, shapes["w7"],worker], [10000, 6, 1.9,seed, shapes["w7"],worker], [10000, 5, 1.0,seed, shapes["w7"],worker], [10000, 10, 1,seed, shapes["w7"],worker],[10000, 10, 1,seed, shapes["w7"],worker]],}
 
 #copy chart-latest and chart-profile folders to home directory of master
 profile_chart = ["chart-profile", "~/charts/chart-profile"]
@@ -106,13 +153,10 @@ function_chart = ["chart-latest", "~/charts/chart-latest"]
 excel_file_path = "/home/" + getpass.getuser() + "/logs/metrics.xlsx" # this file should already be there with a sheet named nodes
 
 clean_up = True #####
-profile_creation_roll_out = 5  #### 30
-function_creation_roll_out = 15  # 120
-redis_server_ip= "10.43.189.161" #assume default port is selected as 3679
-#NOTE if True, queues must be already created! and follows the name pattern as queue-worker-functionName
-multiple_queue=False
-#if true, Linkerd is required for OpenFaaS
-service_mesh=False
+profile_creation_roll_out = 15  #### 30
+function_creation_roll_out = 60  # 120
+
+
 #CPU intensity of applications request per nodes per app
 counter=[{"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"10", "short":"5"},
          {"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"50", "short":"30"},
@@ -123,7 +167,7 @@ counter=[{"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"10", "sho
          {"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"50", "short":"30"}]
 
 monitor_interval=10 #second
-scheduling_interval= [3600, 300, 300, 300]  ### second -- default 5 *  60 equivalent to 30 min
+scheduling_interval= [180, 300, 300, 300]  ### second -- default 5 *  60 equivalent to 30 min
 failure_handler_interval=10
 battery_sim_update_interval=30
 min_request_generation_interval = 1
@@ -156,8 +200,8 @@ renewable_real={
     "w3":[0,0,0,0,0,38,161,236,458,596,572,480,476,624,894,528,276,85,114,0,0,0,0,0],
     "w4":[0,0,0,0,0,19,76,101,525,164,679,588,282,484,362,349,269,65,41,0,0,0,0,0],
     "w5":[0,0,0,0,0,15,60,153,346,655,686,265,180,156,189,76,93,60,37,0,0,0,0,0],
-    "w6":[],
-    "w7":[],
+    "w6":[0,0,0,0,0,15,60,153,346,655,686,265,180,156,189,76,93,60,37,0,0,0,0,0],
+    "w7":[0,0,0,0,0,15,60,153,346,655,686,265,180,156,189,76,93,60,37,0,0,0,0,0],
 } #####
 
 #default=4 not sure if effective by updating on the fly
@@ -195,7 +239,7 @@ usb_meter={"master":"",
            "w4":"00:15:A3:00:19:A7",
            "w5":"00:15:A3:00:5A:6F",
            "w6":"",
-           "w7":""}
+           "w7":"00:16:A5:00:0E:94"}
 #Mohammad Goudarzi one ""
 #broken USB meter: "00:15:A5:00:02:ED", "00:15:A3:00:68:C4"
 #either battery_operated or battery_sim should be enabled
@@ -226,6 +270,8 @@ plan={
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"MASTER",
     "gateway_IP":gateway_IP,
+    "openfaas_gateway_port": openfaas_gateway_port,
+    "routes": routes,
     "debug":True,
     "bluetooth_addr":usb_meter["master"],
     #[0]app name
@@ -290,6 +336,8 @@ plan={
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
     "gateway_IP":gateway_IP,
+    "openfaas_gateway_port": openfaas_gateway_port,
+    "routes": routes,
     "debug":True,
     "bluetooth_addr":usb_meter["w1"],
     #[0]app name
@@ -354,6 +402,8 @@ plan={
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
     "gateway_IP":gateway_IP,
+    "openfaas_gateway_port": openfaas_gateway_port,
+    "routes": routes,
     "debug":True,
     "bluetooth_addr":usb_meter["w2"],
     #[0]app name
@@ -419,6 +469,8 @@ plan={
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
     "gateway_IP":gateway_IP,
+    "openfaas_gateway_port": openfaas_gateway_port,
+    "routes": routes,
     "debug":True,
     "bluetooth_addr":usb_meter["w3"],
     #[0]app name
@@ -483,6 +535,8 @@ plan={
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
     "gateway_IP":gateway_IP,
+    "openfaas_gateway_port": openfaas_gateway_port,
+    "routes": routes,
     "debug":True,
     "bluetooth_addr":usb_meter["w4"],
     #[0]app name
@@ -547,6 +601,8 @@ plan={
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
     "gateway_IP":gateway_IP,
+    "openfaas_gateway_port": openfaas_gateway_port,
+    "routes": routes,
     "debug":True,
     "bluetooth_addr":usb_meter["w5"],
     #[0]app name
@@ -611,6 +667,8 @@ plan={
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
     "gateway_IP":gateway_IP,
+    "openfaas_gateway_port": openfaas_gateway_port,
+    "routes": routes,
     "debug":True,
     "bluetooth_addr":usb_meter["w6"],
     #[0]app name
@@ -674,6 +732,8 @@ plan={
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
     "gateway_IP":gateway_IP,
+    "openfaas_gateway_port": openfaas_gateway_port,
+    "routes": routes,
     "debug":True,
     "bluetooth_addr":usb_meter["w7"],
     #[0]app name

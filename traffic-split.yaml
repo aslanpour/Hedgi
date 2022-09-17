@@ -1,0 +1,14 @@
+apiVersion: split.smi-spec.io/v1alpha2
+kind: TrafficSplit
+metadata:
+  name: function-split
+  namespace: openfaas-fn
+spec:
+  # The root service that clients use to connect to the destination application.
+  service: ssd-tpu
+  # Services inside the namespace with their own selectors, endpoints and configuration.
+  backends:
+  - service: ssd-tpu-blue
+    weight: 1
+  - service: ssd-tpu-green
+    weight: 0

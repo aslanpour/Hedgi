@@ -9,8 +9,13 @@ def what_device_is_it(name):
     return False
 
 def attached_tpu_detected():
-    usb_devices = shell('lsusb')
-    return True if 'Google Inc.' in usb_devices or 'Global Unichip Corp.' in usb_devices else False
+    usb_devices, error = shell('lsusb')
+    if error: 
+        print('ERROR:' + error, flush=True)
+        return False
+    else:
+        #or by vendor:product through lsusb -d 0x1a6e:0x089a
+        return True if 'Google Inc.' in usb_devices or 'Global Unichip Corp.' in usb_devices else False
 
 #password= "", "any_password", "prompt"
 def shell(cmd, password="", timeout=30):
@@ -62,127 +67,131 @@ def shell(cmd, password="", timeout=30):
     return output, error
 
 
+######
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+if os.path.exists(dir_path + "/pykubectl.py"): import pykubectl
 
-####################
-def patch_kubernetes_deployment(name, namespace = "default", enabling_tpu_gpu_access = False):
-    from kubernetes import config, dynamic
-    from kubernetes.client import api_client
-    import datetime
-    import pytz
-    error = ""
+#patch a function
+def openfaas_function_customizations(function_name, namespace='openfaas-fn', operation='get-json', patch_type='application/merge-patch+json'):
+    results = None; msg = ""; error=""
 
-    # Creating a dynamic client
-    try:
-        dynamic_api_client = dynamic.DynamicClient(
-            api_client.ApiClient(configuration=config.load_kube_config())
-        )
-    except Exception as e:
-        error += '\n' + str(e)
-        error= 'Unable to get kubeconfig'
-        return error, 400
+    #get Deployment of the function as json
+    manifest = {}
 
-    #Does the requested deployment exist?
-    exists = False
-    from kubernetes import client
-    apps_v1 = client.AppsV1Api()
-    deployments = apps_v1.list_namespaced_deployment(namespace=namespace)
-    for i in deployments.items:
-            #print(f'{i.status.available_replicas}\t\t{i.spec.replicas}\t\t{i.metadata.namespace}\t{i.metadata.name}')
-            if i.metadata.name == name:
-                exists = True
-    if exists == False:
-        error += '\n The requested deployment name=' + name + ' is not found in namespace=' + namespace
-        return error, 400
+    patch_info = {
+        "api_version": "apps/v1",
+        "kind": "Deployment",
+        "object_name": function_name,
+        "manifest": manifest,
+        "namespace": namespace,
+        "operation": operation,
+    }
 
-    # fetching the deployment api
-    dynamic_api = dynamic_api_client.resources.get(api_version="apps/v1", kind="Deployment")
+    #get
+    deployment_dict, msg, error = pykubectl.apply(**patch_info)
 
-    #get the deployment by name
-    try:
-        deployment = dynamic_api.get(name=name, namespace=namespace)
-    except Exception as e:
-        error += '\n' + str(e)
-        error += '\nFailed to get the requested deployment -- name=' + name + ' namespace=' + namespace
-        return error, 400
+    #get main container (in case multi-container is enables using like service mesh side car)
+    index=-1
+    for container in deployment_dict['spec']['template']['spec']['containers']:
+        if container['name'] == function_name:
+            index = deployment_dict['spec']['template']['spec']['containers'].index(container)
+            break
+    if index ==-1:
+        error += '\nA container with the name of function was not found in the deployment'
+        return results, msg, error
+
     
-    if enabling_tpu_gpu_access:
-        #update the fileds
-        #allowPrivilegeEscalation = True
-        #'{"spec": {"template": {"spec": {"containers": [{"name": "ssd-tpu","image": "aslanpour/ssd:cpu-tpu", "securityContext": {"allowPrivilegeEscalation": true}}]}}}}'
-        deployment.spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation = True
-        #privileged = True
-        #'{"spec": {"template": {"spec": {"containers": [{"name": "ssd-tpu","image": "aslanpour/ssd:cpu-tpu", "securityContext": {"privileged": true}}]}}}}'
-        deployment.spec.template.spec.containers[0].securityContext.privileged = True
-        #runAsUser = 0
-        #'{"spec": {"template": {"spec": {"containers": [{"name": "ssd-tpu","image": "aslanpour/ssd:cpu-tpu", "securityContext": {"runAsUser": 0}}]}}}}'
-        deployment.spec.template.spec.containers[0].securityContext.runAsUser = 0
-        #volumes hostPath
-        #'{"spec": {"template": {"spec": {"volumes": [{"name": "usb-devices", "hostPath": {"path": "/dev/bus/usb"}}]}}}}'
-        deployment.spec.template.spec.volumes = [{"name": "usb-devices", "hostPath": {"path": "/dev/bus/usb"}}]
-        #volumeMounts mountPath
-        #'{"spec": {"template": {"spec": {"containers": [{"name": "ssd-tpu", "volumeMounts":[{"mountPath": "/dev/bus/usb", "name": "usb-devices"}]}]}}}}'
-        deployment.spec.template.spec.containers[0].volumeMounts = [{"mountPath": "/dev/bus/usb", "name": "usb-devices"}]
+    #customize fields
 
-        #get Pod info as env into the container
-        deployment.spec.template.spec.containers[0].env = [{"name": "GREETING", "value": "WARM_GREETING"},
-                                                            {"name": "NODE_NAME", "valueFrom": {"fieldRef":{"fieldPath": "spec.nodeName"}}},
-                                                            {"name": "POD_NAME", "valueFrom": {"fieldRef":{"fieldPath": "metadata.name"}}},
-                                                            {"name": "POD_NAMESPACE", "valueFrom": {"fieldRef":{"fieldPath": "metadata.namespace"}}},
-                                                            {"name": "POD_IP", "valueFrom": {"fieldRef":{"fieldPath": "status.podIP"}}},
-                                                            {"name": "POD_IPS", "valueFrom": {"fieldRef":{"fieldPath": "status.podIPs"}}},
-                                                            {"name": "POD_HOST_IP", "valueFrom": {"fieldRef":{"fieldPath": "status.hostIP"}}},
-                                                            {"name": "DEPLOYMENT_NAME", "valueFrom": {"fieldRef":{"fieldPath": "metadata.labels['app']"}}},
-                                                            {"name": "POD_UID", "valueFrom": {"fieldRef":{"fieldPath": "metadata.uid"}}}]
+    #imagepullPolicy = Never. Do this carefully???
+    deployment_dict['spec']['template']['spec']['containers'][index]['imagePullPolicy'] = 'Never'
+    # deployment.spec.template.spec.containers[container_id].image_pull_policy = 'Never'
+   
+    #allowPrivilegeEscalation = True
+    #privileged = True
+    #runAsUser = 0
+    #readOnlyRootFilesystem = False (openfaas adds this to functions, so include this to avoid loosing it upon patching securityContext)
+    deployment_dict['spec']['template']['spec']['containers'][index]['securityContext'] = {"allowPrivilegeEscalation": True,
+                                                                                           "privileged": True,
+                                                                                            "runAsUser": 0,
+                                                                                            "readOnlyRootFilesystem": False,
+                                                                                            }
 
-    else:
-        error += '\nPatching this field is not implemented yet.'
-        return error, 400
-
-    #patch
-    try:
-        result = dynamic_api.patch(body=deployment, name=name, namespace=namespace)
-    except Exception as e:
-        error += '\n' + str(e)
-        error += '\nPatch failed -- name=' + name + ' namespace=' + namespace + ' body=' + deployment
-        return error, 400
-    return error, 200
-
-    #alternative way of patching a deployment by Kubectl. ref: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#patch-deployment-v1-apps
-    '''
-    kubectl patch deployment deployment-example -p \
-	'{"spec":{"template":{"spec":{"containers":[{"name":"nginx","image":"nginx:1.16"}]}}}}'
-    '''
-    
-    #alternative way of patching a deployment by Curl. Ref: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#patch-deployment-v1-apps
-    '''
-    kubectl proxy
-
-    $ curl -X PATCH -H 'Content-Type: application/strategic-merge-patch+json' --data '
-        {"spec":{"template":{"spec":{"containers":[{"name":"nginx","image":"nginx:1.16"}]}}}}' \
-	    'http://127.0.0.1:8001/apis/apps/v1/namespaces/default/deployments/deployment-example'
-
-    '''
-
-    #alternative way of patching a deployment in Python
-    '''
-    from kubernetes import client, config
-
-    DEPLOYMENT_NAME = "ssd-tpu"
-    client.configuration.debug = True
-    config.load_kube_config()
-    apps_v1 = client.AppsV1Api()
-
-
-    #'{"spec": {"template": {"spec": {"containers": [{"name": "ssd-tpu","image": "aslanpour/ssd:cpu-tpu", "securityContext": {"allowPrivilegeEscalation": true}}]}}}}'
-    # patch = [{"op": "replace", "value": True, "path": "/spec/template/spec/containers/0/securityContext/allowPrivilegeEscalation"}]
+    #volumes hostPath
+    deployment_dict['spec']['template']['spec']['volumes'] = [{"name": "usb-devices", "hostPath": {"path": "/dev/bus/usb"}}]
+    # deployment.spec.template.spec.volumes = [{"name": "usb-devices", "hostPath": {"path": "/dev/bus/usb"}}]
     #'{"spec": {"template": {"spec": {"volumes": [{"name": "usb-devices", "hostPath": {"path": "/dev/bus/usb"}}]}}}}'
 
-    patch = [{"op": "replace", "value": [{"name": "usb-devices", "hostPath": {"path": "/dev/bus/usb"}}], "path": "/spec/template/spec/volumes"}]
-    # patch the deployment
-    resp = apps_v1.patch_namespaced_deployment(
-        name=DEPLOYMENT_NAME, namespace="saas-fn", body=patch
-    )
+    #volumeMounts mountPath
+    deployment_dict['spec']['template']['spec']['containers'][index]['volumeMounts'] = [{"mountPath": "/dev/bus/usb", "name": "usb-devices"}]
+    # deployment.spec.template.spec.containers[container_id].volumeMounts = [{"mountPath": "/dev/bus/usb", "name": "usb-devices"}]
+    #'{"spec": {"template": {"spec": {"containers": [{"name": "ssd-tpu", "volumeMounts":[{"mountPath": "/dev/bus/usb", "name": "usb-devices"}]}]}}}}'
+    
+    #env??????????????
+    '''- name: REDIS_SERVER_PORT
+          value: "3679"
+        - name: read_timeout
+          value: 15s
+        - name: write_debug
+          value: "true"
+        - name: COUNTER
+          value: "0"
+        - name: REDIS_SERVER_IP
+          value: 10.43.189.161
+        - name: exec_timeout
+          value: 15s
+        - name: handler_wait_duration
+          value: 15s
+        - name: version
+          value: "1"
+        - name: write_timeout
+          value: 15s'''
+
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'MODEL_PRE_LOAD', 'value': 'yes', 'value_from': None})
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'MODEL_RUN_ON', 'value': 'tpu', 'value_from': None})
+    # deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'MODEL_CPU_WORKERS', 'value': '1', 'value_from': None})
+    # deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'WAITRESS_THREADS', 'value': '4', 'value_from': None})
+
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'NODE_NAME', 'value': None, 'valueFrom': {'fieldRef': {'apiVersion': 'v1', 'fieldPath': 'spec.nodeName'}}})
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'POD_NAME', 'value': None, 'valueFrom': {'fieldRef': {'apiVersion': 'v1', 'fieldPath': 'metadata.name'}}})
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'POD_NAMESPACE', 'value': None, 'valueFrom': {'fieldRef': {'apiVersion': 'v1', 'fieldPath': 'metadata.namespace'}}})
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'POD_IP', 'value': None, 'valueFrom': {'fieldRef': {'apiVersion': 'v1', 'fieldPath': 'status.podIP'}}})
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'POD_IPS', 'value': None, 'valueFrom': {'fieldRef': {'apiVersion': 'v1', 'fieldPath': 'status.podIPs'}}})
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'POD_HOST_IP', 'value': None, 'valueFrom': {'fieldRef': {'apiVersion': 'v1', 'fieldPath': 'status.hostIP'}}})
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'POD_UID', 'value': None, 'valueFrom': {'fieldRef': {'apiVersion': 'v1', 'fieldPath': 'metadata.uid'}}})
+    a='''
+        - name: POD_HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
     '''
 
-#######################
-# patch_kubernetes_deployment('ssd-tpu', namespace = "openfaas-fn", enabling_tpu_gpu_access = True)
+    #prepare
+    patch_info = {
+        "api_version": "apps/v1",
+        "kind": "Deployment",
+        "object_name": function_name,
+        "manifest": deployment_dict,
+        "namespace": namespace,
+        "operation": 'patch',
+        "patch_type": patch_type,
+    }
+    
+    #patch
+    patched_deployment, msg_child, error = pykubectl.apply(**patch_info)
+    msg += msg_child
+    # print('RRRRRRRRRRRRRRRRRRRRRR')
+    # if not error:
+    #     print( results)
+
+    # print(msg)
+    # print('ERROR:' +error)
+    results = patched_deployment
+    return results, msg, error
+
+    
+    
+
+
+# openfaas_function_customizations('w5-ssd')

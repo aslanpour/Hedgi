@@ -17,9 +17,14 @@ def manifest_builder(**kwargs):
     #TrafficSplit
     if kwargs['kind'] == 'TrafficSplit':
         manifest, msg_child, error = trafficSplit(**kwargs)
+        msg += msg_child
+    elif kwargs['kind'] == 'Function':
+        manifest, msg_child, error = function(**kwargs)
+        msg += msg_child
     else:
         error +='\nKind: ' + kwargs['kind'] + ' not implemented'
     
+    msg += '\nmanifest_builder stopped'
     return manifest, msg, error
 
 
@@ -31,7 +36,7 @@ def trafficSplit(**kwargs):
 
     #verify especial fileds for a TrafficSplit, e.g., backend and service
     if not 'backends' in kwargs or not 'service' in kwargs:
-        error += '\nNo backends and/or service are not given in kwargs'
+        error += '\nNo backends and/or service are given in kwargs'
         return results, msg, error
 
 
@@ -49,5 +54,40 @@ def trafficSplit(**kwargs):
         }
     }
 
-
+    msg += '\ntrafficSplit: stopped'
     return manifest, msg, error
+
+
+# manifest builder for Function
+def function(**kwargs):
+    results= None; msg=""; error=""
+    msg +="manifest builder for Function started."
+
+    #verify especial fileds for a Function, e.g., image
+    if not 'image' in kwargs:
+        error += '\nNo image is given in kwargs'
+        return results, msg, error
+
+
+    #manifest
+    manifest = {
+        "apiVersion": kwargs['api_version'],
+        "kind": kwargs['kind'],
+        "metadata": {
+            "name": kwargs['object_name'],
+            "namespace": kwargs['namespace']
+        },
+        "spec": {
+            "name": kwargs['object_name'],
+            'image':  kwargs['image'],
+            'labels': kwargs['labels'],
+            'annotations': kwargs['annotations'],
+            'constraints': kwargs['constraints'],
+        }
+    }
+
+    msg +="\nmanifest builder for Function stopped"
+    return manifest, msg, error
+
+
+
