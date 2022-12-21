@@ -180,7 +180,7 @@ def write(metrics, excel_file_path):
         #splitter S
         row.extend(['**end node**'])
 
-        #apps T U V W X Y Z AA ... AX
+        #apps T U V W X Y Z AA ... BS
         #if node has been LOAD_GENERATOR OR STANDALONE
         if "app_order" in metrics:
             #and has had enabled app
@@ -189,7 +189,7 @@ def write(metrics, excel_file_path):
                     print(metrics[app])
                     #T --> app name: first app is "app_overall"
                     row.extend([app])
-                    # T .. AX
+                    # T .. BS
                     row.extend([metrics[app]["created"],
                               metrics[app]["sent"]["sum"],
                               metrics[app]["sent"]["percent"],
@@ -234,11 +234,15 @@ def write(metrics, excel_file_path):
                               metrics[app]["percentiles_suc_fail"]["p99"],
                               metrics[app]["percentiles_suc_fail"]["p99.9"],
                               metrics[app]["percentiles_suc_fail"]["p100"],
+                              '-'.join(map(str, metrics[app]["executor_ips"]["hosts"]["ips"])),
+                              '-'.join(map(str, metrics[app]["executor_ips"]["hosts"]["counter"])),
+                              '-'.join(map(str, metrics[app]["executor_ips"]["pods"]["ips"])),
+                              '-'.join(map(str, metrics[app]["executor_ips"]["pods"]["counter"])),
                               metrics[app]["detected_objects"]["sum"],
                               metrics[app]["detected_objects"]["avg"],
                               metrics[app]["detected_objects"]["accuracy_avg"]])
 
-                    #splitter R
+                    #splitter S and BP...
                     row.extend(['**end app**'])
 
         
@@ -278,3 +282,24 @@ def csv_write(csv_file_path, data):
     csv_file = open(csv_file_path, 'ab')
     np.savetxt(csv_file, data, delimiter=",", fmt="%s")
     csv_file.close()
+
+#fileds
+'''
+['test', 'time', 'dur', 'start', 'finish', 'name', 'power', 'down_min', 'down_%', 'cpu_avg', 'cpu_max', 'cpuUp_avg', 'cpuUp-max', 'cpu_freq_avg', 'mem_avg', 'mem_max', 'bw_sent(mb)', 'bw_recv(mb)', 'aplitter', 'app', 'created', 'sent_sum', 'sent%', 'code200_sum', 'code200%', 'code500', 'code502', 'code503', 'code-1', 'others', 'drop_sum', 'drop%', 'drop_b_sum', 'drop_b%', 'adm_avg', 'adm_max', 'qu_avg', 'qu_max', 'exec_avg', 'exec_max', 'rt_suc_avg', 'rt_suc__max', 'rt_suc_fail_avg', 'rt_suc_fail_max', 'useless', 'throu2', 'p0_suc', 'p25', 'p50', 'p75', 'p90', 'p95', 'p99', 'p99.9', 'p100', 'p0_suc_fail', 'p25', 'p50', 'p75', 'p90', 'p95', 'p99', 'p99.9', 'p100', 'detect_sum', 'detect_avg', 'detect_accuracy', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']
+'''
+
+#read from csv file. Example, from row 471 read test and power values.
+'''
+import csv
+with open('/home/ubuntu/logs/metrics.csv', newline='') as csvfile:
+    reader = csv.DictReader(csvfile)
+    # print(csv.DictReader(csvfile).fieldnames)
+    c=1
+    for row in reader:
+        c+=1
+        if c==471:
+            print(type(row['test']), type(row['power']))
+            print(row)
+            
+            break
+'''

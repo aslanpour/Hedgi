@@ -1,6 +1,5 @@
-###
 from gevent import monkey;monkey.patch_all() #for gevent use: this allows async gevent (without it pool.join() is needed so gevents wrok that will block the workload generator) and must be placed before import Flask
-from flask import Flask, request, send_file, make_response, json  # pip3 install flask
+from flask import Flask, request, send_file, make_response, json, jsonify  # pip3 install flask
 from waitress import serve  # pip3 install waitress
 import requests  # pip3 install requests
 import threading
@@ -25,7 +24,7 @@ from bluetooth import *  # sudo apt-get install bluetooth bluez libbluetooth-dev
 import random
 import socket
 import os  # file path
-import shutil  # empty a folder
+import shutil  # empty a folder, copy a file
 import subprocess as sp  # to run cmd to disconnect Bluetooth
 import getpass
 # setup file exists?
@@ -62,9 +61,7 @@ def set_ip():
 
 
 node_IP = set_ip()
-gateway_IP = "10.0.0.90"  # ??? set individually
-openfaas_gateway_port = "31112"
-routes = {}
+load_balancing ={}
 peers = []
 test_index = 0
 test_updates = {}
@@ -73,12 +70,13 @@ epoch = 0
 test_name = socket.gethostname() + "_test"
 workers = []
 functions = []
-history = {'functions': {}, 'workers': {}}
+history = {'functions': [], 'workers': [], 'load_balancer': [], 'scheduler': [], 'autoscaler': []}
 metrics = {}
 
 sessions = {}
 
 debug = False
+erro_collector = []
 waitress_threads = 6  # default is 4
 try:
     cpuFreq = cpuFreq()
@@ -181,26 +179,50 @@ def launcher(coordinator):
     global logger
     global node_name
     global node_IP
+    global epoch
     logger.info('start')
 
     # set plan for coordinator itself.
     name = coordinator[1]
     ip = coordinator[2]
-    plan = setup.plan[name]
+
+    plan = copy.deepcopy(setup.plan[name])
+    
     # config for multi-tests
     plan["test_name"] = setup.test_name[epoch]
-    # set counter per app ???
-    plan["apps"][0][8][6] = setup.counter[epoch]["ssd"]
-    plan["apps"][1][8][6] = setup.counter[epoch]["yolo3"]
-    plan["apps"][2][8][6] = setup.counter[epoch]["irrigation"]
-    plan["apps"][3][8][6] = setup.counter[epoch]["crop-monitor"]
-    plan["apps"][4][8][6] = setup.counter[epoch]["short"]
-    # set battery size per test
-    plan["battery_cfg"][1] = setup.max_battery_charge[epoch]
+    # # set counter per app ???
+    # #This f'{foo=}'.split('=')[0].split('.')[-1] returns the name of the given variable 'foo' by excluding the value '=*' and prefix 'setup.' from f'{foo=}'
+    # plan["apps"][0][8][6] = setup.counter[epoch if f'{setup.counter=}'.split('=')[0].split('.')[-1] in setup.variable_parameters else 0 ]["ssd"]
+    # plan["apps"][1][8][6] = setup.counter[epoch if f'{setup.counter=}'.split('=')[0].split('.')[-1] in setup.variable_parameters else 0]["yolo3"]
+    # plan["apps"][2][8][6] = setup.counter[epoch if f'{setup.counter=}'.split('=')[0].split('.')[-1] in setup.variable_parameters else 0]["irrigation"]
+    # plan["apps"][3][8][6] = setup.counter[epoch if f'{setup.counter=}'.split('=')[0].split('.')[-1] in setup.variable_parameters else 0]["crop-monitor"]
+    # plan["apps"][4][8][6] = setup.counter[epoch if f'{setup.counter=}'.split('=')[0].split('.')[-1] in setup.variable_parameters else 0]["short"]
+    # print('111111111111111111111')
+    # print(plan["apps"][0][3][2])
+    # #set [0]ssd, [3]workload_cfg, [2] concurrency. ???this applies for only for ssd app
+    # #This plan["apps"][0][3] retruns [10000, 1, [7],seed, shapes["w7"],worker]
+    # #if workload_cfg in setup.variable_parameters, get concurrency item with the index of epoch' otherwise get the index 0 and set it as a float/int single value for concurrency
+    # plan["apps"][0][3][2] = plan["apps"][0][3][2][epoch if f'{setup.workload_cfg=}'.split('=')[0].split('.')[-1] in setup.variable_parameters else 0]
+
+    # #if workload_cfg in variable_paramters
+    # # if f'{setup.workload_cfg=}'.split('=')[0].split('.')[-1] in setup.variable_parameters:
+    # #     #if concurrency for ssd app is a list of values [] in setup.workload_cfg
+    # #     if isinstance(plan["apps"][0][3][2], list):
+    # #         #get concurrency for this epoch from list and set it as a single int/float
+    # #         plan["apps"][0][3][2] = plan["apps"][0][3][2][epoch]
+    # #     #if concurrency is not a list, it is wrong
+    # #     else:
+    # #         logger.error('workload_cfg in setup.variable_parameters, but plan["apps"][0][3][2] is NOT a list')
+    # #         time.sleep(3600)
+    # # #if workload_cfg is Not in variable_paramters and concurrency is a list, that is wrong. 
+    # # elif isinstance(plan["apps"][0][3][2], list):
+    # #     logger.error('workload_cfg NOT in setup.variable_parameters, but plan["apps"][0][3][2] is a list. Change it to single int/float')
+    # #     time.sleep(3600)
+    
+    # set battery size per test. All batteries are considered homogeneous. 
+    plan["battery_cfg"][1] = setup.max_battery_charge[epoch if 'max_battery_charge' in setup.variable_parameters else 0]
     # set cpu governor per test
-    plan["cpu_freq_config"]["governors"] = setup.cpu_governor[epoch]
-    #set routes
-    plan["routes"] = setup.routes[epoch]
+    plan["cpu_freq_config"]["governors"] = setup.cpu_governor[epoch if 'cpu_governor' in setup.variable_parameters else 0]
     # verify node_name
     if name != node_name:
         logger.error('MAIN: Mismatch node name: actual= ' + node_name + ' assigned= ' + name)
@@ -218,43 +240,79 @@ def launcher(coordinator):
     if reply != "success":
         logger.error('INTERNAL interrupted and stopped')
         return "failed"
+    else:
+         logger.info(name + ' reply: ' + 'success')
 
     reply_success = 0
     # set peers plan, sequentially, including USB Meter connection
     for node in setup.nodes:
         position = node[0]
+        if position != "PEER":
+            continue
+
         name = node[1]
         ip = node[2]
-        plan = setup.plan[name]
+        plan = copy.deepcopy(setup.plan[name])
         # config for multi-test
         plan["test_name"] = setup.test_name[epoch]
         # set counter per app ???
-        plan["apps"][0][8][6] = setup.counter[epoch]["ssd"]
-        plan["apps"][1][8][6] = setup.counter[epoch]["yolo3"]
-        plan["apps"][2][8][6] = setup.counter[epoch]["irrigation"]
-        plan["apps"][3][8][6] = setup.counter[epoch]["crop-monitor"]
-        plan["apps"][4][8][6] = setup.counter[epoch]["short"]
-        # set battery size per test
-        plan["battery_cfg"][1] = setup.max_battery_charge[epoch]
-        # set cpu governor per test
-        plan["cpu_freq_config"]["governors"] = setup.cpu_governor[epoch]
-        #set routes
-        plan["routes"] = setup.routes[epoch]
+        plan["apps"][0][8][6] = setup.counter[epoch if 'counter' in setup.variable_parameters else 0]["ssd"]
+        plan["apps"][1][8][6] = setup.counter[epoch if 'counter' in setup.variable_parameters else 0]["yolo3"]
+        plan["apps"][2][8][6] = setup.counter[epoch if 'counter' in setup.variable_parameters else 0]["irrigation"]
+        plan["apps"][3][8][6] = setup.counter[epoch if 'counter' in setup.variable_parameters else 0]["crop-monitor"]
+        plan["apps"][4][8][6] = setup.counter[epoch if 'counter' in setup.variable_parameters else 0]["short"]
 
-        if position == "PEER":
-            logger.info('peers:' + name + ': ' + str(ip))
+        #set [0]ssd, [3]workload_cfg, [2] concurrency. ???this applies for only for ssd app
+        #This plan["apps"][0][3] retruns [10000, 1, [7],seed, shapes["w7"],worker]
+        #if workload_cfg in setup.variable_parameters, get concurrency item with the index of epoch' otherwise get the index 0 and set it as a float/int single value for concurrency
+        plan["apps"][0][3][2] = plan["apps"][0][3][2][epoch if 'workload_cfg' in setup.variable_parameters else 0]
+        # #if workload_cfg in variable_paramters
+        # if f'{setup.workload_cfg=}'.split('=')[0].split('.')[-1] in setup.variable_parameters:
+        #     #if concurrency for ssd app is a list of values [] in setup.workload_cfg
+        #     if isinstance(plan["apps"][0][3][2], list):
+        #         #get concurrency for this epoch from list and set it as a single int/float
+        #         plan["apps"][0][3][2] = plan["apps"][0][3][2][epoch] 
+        #     #if concurrency is not a list, it is wrong
+        #     else:
+        #         logger.error('workload_cfg in setup.variable_parameters, but plan["apps"][0][3][2] is NOT a list')
+        #         time.sleep(3600)
+        # #if workload_cfg is Not in variable_paramters and concurrency is a list, that is wrong. 
+        # elif isinstance(plan["apps"][0][3][2], list):
+        #     logger.error('workload_cfg NOT in setup.variable_parameters, but plan["apps"][0][3][2] is a list. Change it to single int/float')
+        #     time.sleep(3600)
+
+        # set battery size per test
+        plan["battery_cfg"][1] = setup.max_battery_charge[epoch if 'max_battery_charge' in setup.variable_parameters else 0]
+        # set cpu governor per test
+        plan["cpu_freq_config"]["governors"] = setup.cpu_governor[epoch if 'cpu_governor' in setup.variable_parameters else 0]
+
+    
+        logger.info('peers:' + name + ': ' + str(ip))
+        response = None
+        replier =10
+        while replier > 0:
+            replier -= 1
             try:
-                response = requests.post('http://' + ip + ':5000/main_handler/plan/' + sender, json=plan)
+                response = requests.post('http://' + ip + ':5000/main_handler/plan/' + sender, json=plan, timeout=10)
+                break
             except Exception as e:
                 logger.error('peers: failed for ' + name + ":" + ip)
                 logger.error('peers: exception:' + str(e))
-                return
-            if response.text == "success":
-                logger.info(name + ' reply: ' + 'success')
-                reply_success += 1
-            else:
-                logger.error('peers: request.text for ' + name + ' ' + str(response.text))
+                
+                #restart network manager
+                cmd = "sudo systemctl restart NetworkManager.service"
+                logger.info('restart network manager: ' + cmd)
+                out, error = utils.shell(cmd)
+                logger.info(out + error)
 
+                time.sleep(3)
+        if response and response.text == "success":
+            logger.info(name + ' reply: ' + 'success')
+            reply_success += 1
+        elif response:
+            logger.error('peers: request.text for ' + name + ' ' + str(response.text))
+        else:
+            logger.error('peer: failed to connect to ' + ip)
     # verify peers reply
     peers = len([node for node in setup.nodes if node[0] == "PEER"])
     if reply_success == peers:
@@ -298,7 +356,7 @@ def launcher(coordinator):
             logger.info('main_handler on: only ' + str(reply_success) + ' of ' + str(peers))
 
     else:
-        logger.info('failed: only ' + str(reply_success) + ' of ' + str(len(setup.nodes)))
+        logger.info('failed: only ' + str(reply_success) + ' of ' + str(len(peers)))
     logger.info('stop')
 
 #load balancer
@@ -313,69 +371,66 @@ def load_balancer():
     start = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
     
     #get config (as dict)
-    load_balancing_config = setup.load_balancing[epoch]
+    load_balancing_config = setup.load_balancing
 
     #history initializing
     history['load_balancer']= []
+    
     #counter initializing
     load_balancing_round = 0
     
+    #create nodes list
+    nodes = []
+    for node in setup.nodes:
+        if node[0] == 'PEER':
+            nodes.append({'name': node[1], 'ip': node[2]})
+
     #load balance
     while under_test:
         #[new round timing]
         now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
         logger.info('Load balancing round #' + str(load_balancing_round) + ' started at ' + str(now))
-        
-        #[Add extra information to the config]
-
-        #add round number and history (in case previous histories are useful for an algorithm) to the config passed to algorithms
+        #set round number
         load_balancing_config['load_balancing_round'] = load_balancing_round
-        # load_balancing_config['history'] = history['load_balancer']
 
-        #and other data like energy SoC
-        #?????
+        #[MONITORING]
+        logger.info('monitoring...')
 
-        print(load_balancing_config)
+        #get nodes status like cpuUtil or charge
+        nodes = monitor_pull(nodes, 'MASTER')
+        #update load_balancing_config
+        load_balancing_config['nodes'] = nodes
 
-        #[plan]: run an algorithm and get updated plan for backends
-        updated_backends_list, msg, error = pyloadbalancing.plan(**load_balancing_config)
+        logger.info('load_balancing_config=\n' + str(load_balancing_config))
+
+        #[ANALYZING]
+        logger.info('analyzing...')
+
+        #[PLANNING]: run an algorithm and get updated plan for backends
+        logger.info('planning...')
+
+        #update backends  
+        load_balancing_config, msg, error = pyloadbalancing.plan(**load_balancing_config)
+        logger.info('plan:' + msg)
+        
         if error:
-            logger.error('plan: ' + msg)
-            logger.error('plan: ' + error)
-        else:
-            logger.info('plan:' + msg)
-
-        #update backends in config 
-        if not error:
-            load_balancing_config['backends'] = copy.deepcopy(updated_backends_list)
-        else:
             logger.error('load_balancing plan failed \n' + str(error))
             time.sleep(3600)
 
+
         #[Execution]
         logger.info('execution...')
-        logger.info('prepare the action')
-        #build manifest for new tradfficsplit, based on the especified 'Kind'
-        manifest, msg, error = pymanifest.manifest_builder(**load_balancing_config)
-
-        #include manifest into config and replace old one.
-        if not error:
-            load_balancing_config['manifest'] = copy.deepcopy(manifest)
-        else:
-            logger.error('load_balancing manifest builder failed \n' + str(error))
-            logger.error('load_balancing manifest builder failed \n' + str(msg))
-            time.sleep(3600)
 
         #execute
-        logger.info('kube_apply')
-        kube_apply, msg, error = pykubectl.apply(**load_balancing_config)
-        if not error:
-            logger.info('kube_apply success')
-        else:
-            logger.error('load_balancing execution failed \n' + str(error))
-            logger.error('load_balancing execution failed \n' + str(msg))
+        load_balancing_config, msg, error = pyloadbalancing.execute(**load_balancing_config)
+        logger.info('execution:' + msg)
+        if error:
+            logger.error('execution failed err\n' + error)
+            time.sleep(3600)
 
-    
+        #print logs
+        logger.info(load_balancing_config)
+
         #history
         history['load_balancer'].append(load_balancing_config)
 
@@ -399,8 +454,43 @@ def load_balancer():
     # load balancer clean_up???
     logger.info('stop')
 
+# monitor_fetch
+def monitor_pull(nodes, current_node_role):
+    global logger
+    logger.info("monitor_pull: start")
+    # MONITOR
+    template = {'cpuUtil': -1, 'charge': -1}
 
-#autoscaler method
+    # Fetch data from peers
+    for node in nodes:
+        success = False
+        # retry
+        while success == False:
+            try:
+                logger.info('monitor_pull: get ' + node['name'] + ' ...')
+                response = requests.get('http://' + node['ip'] + ':5000/main_handler/pull/'
+                                        + current_node_role, timeout=10, json=template)
+            except Exception as e:
+                logger.error('monitor_pull: get failed for ' + node['name'] + ":" + str(e))
+                time.sleep(1)
+            else:
+                logger.info('monitor_pull response \n' + str(response.json()))
+                if response.json() and 'cpuUtil' in response.json():
+                # if response.json().get('cpuUtil'):
+                    node['cpuUtil'] = response.json()['cpuUtil']
+                    logger.info('pull_monitor: response of ' + node['name'] + ' is ' + str(node['cpuUtil']) + '%')
+                    success = True
+                else:
+                    logger.error('key cpuUtil not found in response.json()')
+                    logger.error(str(response.headers))
+
+    logger.info('pull_monitor:\n' + '\n'.join([str(node) for node in nodes]))
+    logger.info("pull_monitor: done")
+
+    return nodes
+
+
+#autoscaler 
 def autoscaler():
     global logger
     global under_test
@@ -503,8 +593,8 @@ def scheduler():
     workers, functions = initialize_workers_and_functions(setup.nodes, workers, functions,
                                                           battery_cfg, setup.plan, setup.zones)
     # history
-    history["functions"] = {}
-    history["workers"] = {}
+    history["functions"] = []
+    history["workers"] = []
 
     logger.info('after initialize_workers_and_functions:\n'
                 + '\n'.join([str(worker) for worker in workers]))
@@ -535,36 +625,36 @@ def scheduler():
             worker[3] = setup.max_cpu_capacity
 
         # planner :workers set capacity, functions set hosts
-        logger.info('planner: call: ' + str(setup.scheduler_name[epoch]))
+        logger.info('planner: call: ' + str(setup.scheduler_name[epoch if 'scheduler_name' in setup.variable_parameters else 0]))
         # Greedy
-        if "greedy" in setup.scheduler_name[epoch]:
+        if "greedy" in setup.scheduler_name[epoch if 'scheduler_name' in setup.variable_parameters else 0]:
             workers, functions = scheduler_planner_greedy(workers, functions, new_functions,
-                                                          setup.max_battery_charge[epoch], setup.zones,
+                                                          setup.max_battery_charge[epoch if 'max_battery_charge' in setup.variable_parameters else 0], setup.zones,
                                                           setup.warm_scheduler,
-                                                          setup.sticky, setup.stickiness[epoch], setup.scale_to_zero,
+                                                          setup.sticky, setup.stickiness[epoch if 'stickiness' in setup.variable_parameters else 0], setup.scale_to_zero,
                                                           debug)
         # scoring
-        elif "shortfaas" in setup.scheduler_name[epoch]:
+        elif "shortfaas" in setup.scheduler_name[epoch if 'scheduler_name' in setup.variable_parameters else 0]:
             workers, functions = scheduler_planner_shortfaas(workers, functions, new_functions,
-                                                             setup.max_battery_charge[epoch], setup.warm_scheduler,
-                                                             setup.plugins[epoch], debug)
+                                                             setup.max_battery_charge[epoch if 'max_battery_charge' in setup.variable_parameters else 0], setup.warm_scheduler,
+                                                             setup.plugins[epoch if 'plugins' in setup.variable_parameters else 0], debug)
         # Local
-        elif "local" in setup.scheduler_name[epoch]:
+        elif "local" in setup.scheduler_name[epoch if 'scheduler_name' in setup.variable_parameters else 0]:
             workers, functions = scheduler_planner_local(workers, new_functions, debug)
         # Default-Kubernetes
-        elif "default" in setup.scheduler_name[epoch]:
+        elif "default" in setup.scheduler_name[epoch if 'scheduler_name' in setup.variable_parameters else 0]:
             workers, functions = scheduler_planner_default(workers, new_functions, debug)
         # Random
-        elif "random" in setup.scheduler_name[epoch]:
+        elif "random" in setup.scheduler_name[epoch if 'scheduler_name' in setup.variable_parameters else 0]:
             workers, functions = scheduler_planner_random(workers, new_functions, debug)
         # Bin-Packing
-        elif "bin-packing" in setup.scheduler_name[epoch]:
+        elif "bin-packing" in setup.scheduler_name[epoch if 'scheduler_name' in setup.variable_parameters else 0]:
             workers, functions = scheduler_planner_binpacking(workers, functions, new_functions, debug)
         # Optimal
-        elif "optimal" in setup.scheduler_name[epoch]:
+        elif "optimal" in setup.scheduler_name[epoch if 'scheduler_name' in setup.variable_parameters else 0]:
             pass
         else:
-            logger.error('scheduler_name not found: ' + str(setup.scheduler_name[epoch]))
+            logger.error('scheduler_name not found: ' + str(setup.scheduler_name[epoch if 'scheduler_name' in setup.variable_parameters else 0]))
             return
 
         # EXECUTE
@@ -574,16 +664,16 @@ def scheduler():
         functions = scheduler_executor(functions, setup.profile_chart,
                                        setup.profile_creation_roll_out,
                                        setup.function_chart, scheduling_round, log_path,
-                                       setup.scheduler_name[epoch], workers, debug)
+                                       setup.scheduler_name[epoch if 'scheduler_name' in setup.variable_parameters else 0], workers, debug)
 
         # history
-        history["functions"][scheduling_round] = copy.deepcopy(functions)
-        history["workers"][scheduling_round] = copy.deepcopy(workers)
+        history["functions"].append(copy.deepcopy(functions))
+        history["workers"].append(copy.deepcopy(workers))
 
         # sliced interval in 1 minutes
         logger.info('MAPE LOOP (round #' + str(scheduling_round) + ') done: sleep for ' + str(
-            setup.scheduling_interval[epoch]) + ' sec...')
-        remained = setup.scheduling_interval[epoch]
+            setup.scheduling_interval[epoch if 'scheduling_interval' in setup.variable_parameters else 0]) + ' sec...')
+        remained = setup.scheduling_interval[epoch if 'scheduling_interval' in setup.variable_parameters else 0]
         minute = 60
         while remained > 0:
             if remained >= minute:
@@ -637,7 +727,7 @@ def scheduler_planner_shortfaas(workers, functions, new_functions,
     for worker in workers:
         soc = worker[2]
         # assume all nodes have batteries of same size????
-        # max_battery_charge = nodes_plan[worker[0]]["battery_cfg"][1]
+        # max_battery_charge = copy.deepcopy(nodes_plan[worker[0]]["battery_cfg"][1])
         soc_percent = round(soc / max_battery_charge * 100)
         logger.info(worker[0] + ' soc : ' + str(soc_percent) + ' %')
         # normalize to 0-1
@@ -904,7 +994,7 @@ def scheduler_planner_greedy(workers, functions, new_functions, max_battery_char
     for worker in workers:
         soc = worker[2]
         # assume nodes have same size battery???
-        # max_battery_charge = nodes_plan[worker[0]]["battery_cfg"][1]
+        # max_battery_charge = copy.deepcopy(nodes_plan[worker[0]]["battery_cfg"][1])
         soc_percent = round(soc / max_battery_charge * 100)
         logger.info('soc percent: ' + str(soc_percent))
         new_zone = [*(zone[1] for zone in zones if soc_percent <= zone[2]
@@ -1321,6 +1411,8 @@ def scheduler_monitor(workers, node_role):
     global logger
     logger.info("scheduler_monitor: start")
     # MONITOR
+    template = {'charge': -1}
+
     # Update SoC
     for worker in workers:
         ip = worker[1]
@@ -1329,20 +1421,27 @@ def scheduler_monitor(workers, node_role):
         while success == False:
             try:
                 logger.info('scheduler_monitor: Soc req.: ' + worker[0])
-                response = requests.get('http://' + ip + ':5000/main_handler/charge/'
-                                        + node_role, timeout=10)
+                response = requests.get('http://' + ip + ':5000/main_handler/pull/'
+                                        + node_role, timeout=10, json=template)
+
             except Exception as e:
                 logger.error('scheduler_monitor:request failed for ' + worker[0] + ":" + str(e))
                 time.sleep(1)
             else:
-                soc = round(float(response.text), 2)
-                index = workers.index(worker)
-                workers[index][2] = soc
-                logger.info('scheduler_monitor: Soc recv.: ' + worker[0] + ":" + str(soc) + "mWh")
-                success = True
+                # logger.info(str(response.json()))
+
+                if response.json() and 'charge' in response.json():
+                    soc = response.json()['charge']
+                    index = workers.index(worker)
+                    workers[index][2] = soc
+                    logger.info('scheduler_monitor: Soc recv.: ' + worker[0] + ":" + str(soc) + " mWh")
+                    success = True
+                else:
+                    logger.error('scheduler_monitor: failed to receive requested values')
 
     logger.info('scheduler_monitor:\n' + '\n'.join([str(worker) for worker in workers]))
-    logger.info("scheduler_monitor:done")
+    logger.info("scheduler_monitor: done")
+
     return workers
 
 
@@ -1357,7 +1456,7 @@ def initialize_workers_and_functions(nodes, workers, functions, battery_cfg, nod
         name = node[1]
         ip = node[2]
         soc = battery_cfg[3]  # set current SoC
-        capacity = nodes_plan[name]["max_cpu_capacity"]  # set capacity as full
+        capacity = copy.deepcopy(nodes_plan[name]["max_cpu_capacity"])  # set capacity as full
         # set zone
         max_battery_charge = battery_cfg[1]
         soc_percent = min(100, round(soc / max_battery_charge * 100))
@@ -1369,7 +1468,7 @@ def initialize_workers_and_functions(nodes, workers, functions, battery_cfg, nod
             workers.append(worker)
 
             # add functions
-            apps = nodes_plan[name]["apps"]
+            apps = copy.deepcopy(nodes_plan[name]["apps"])
             for app in apps:
                 if app[1] == True:
                     # function = [identity, hosts[], func_info, profile]
@@ -1439,7 +1538,23 @@ def scheduler_executor(functions, profile_chart, profile_creation_roll_out,
                 + '\n'.join([str(str(function[0]) + '--->'
                                  + str(function[3])) for function in functions]))
     # 2 apply the new scheduling for functions by helm chart
-    # if no change is profile happend, no re-scheduling is affected
+
+    #Note: if first scheduling round <= 1, first delete the function left from previous experiment to avoid mismatching config like replicas.
+    
+    if scheduling_round <=1:
+        logger.info('delete functions left from previous experiments.')
+        for function in functions:
+            func_name = str(function[0][0]) + '-' + str(function[0][1])
+            #kubectl apply (delete)
+            func_args = {'api_version': 'openfaas.com/v1',
+                        'kind': 'Function',
+                        'object_name': func_name,
+                        'namespace': 'openfaas-fn',
+                        'operation': 'safe-delete'}
+            logger.info('delete_function start' + func_name + '\n' + str(func_args))
+            pykubectl.apply(**func_args)
+            logger.info('delete_function done ' + func_name + '\n' + str(func_args))
+    # if no change in profile happend, no re-scheduling is affected
     logger.info("scheduler_executor:apply all: call")
     scheduler_executor_apply(functions, profile_chart, profile_creation_roll_out,
                              function_chart, scheduling_round, log_path,
@@ -1450,15 +1565,16 @@ def scheduler_executor(functions, profile_chart, profile_creation_roll_out,
 
     #3 customize Deployment of functions in kubernetes
     #only if it is the first round of scheduling or the function has been redeployed (it is redeployed, if the profile object is changed. Verifiable by comparing the version value in the function)
-    #??? function history items are dict, should be list for better querying, history['functions']= [] not history['functions'] = {}. So, index of scheduling_round should start from 0 wherever called
+    
     logger.info("scheduler_executor: patch functions for customizations")
     for function in functions:
         #if first scheduling
         if scheduling_round <= 1:
             #patch it
             function_name = function[0][0] + '-' + function[0][1]
+            function_worker_name = function[0][0]
             logger.info('patch functions ' + function_name + ' for customizations.')
-            res, msg, err = utils.openfaas_function_customizations(function_name)
+            res, msg, err = utils.openfaas_function_customizations(function_name, function_worker_name, setup.accelerators)
             if err:
                 logger.error('openfaas_function_customizations failed:' 
                 + '\nmsg: ' + msg
@@ -1469,7 +1585,8 @@ def scheduler_executor(functions, profile_chart, profile_creation_roll_out,
         #if function redeployed
         else:
             #get previous version value of this function
-            previous_round_functions = history["functions"][scheduling_round - 1]
+            previous_round_functions = history["functions"][-1]
+            # previous_round_functions = history["functions"][scheduling_round - 1]???
             for old_function in previous_round_functions:
                 if old_function[0][0] == function[0][0] and old_function[0][1] == function[0][1]:
                     old_version = old_function[2][16]
@@ -1479,8 +1596,9 @@ def scheduler_executor(functions, profile_chart, profile_creation_roll_out,
                 #patch it
                 logger.info('patch functions for customizations.')
                 function_name = function[0][0] + '-' + function[0][1]
+                function_worker_name = function[0][0]
                 logger.info('patch functions ' + function_name + ' for customizations.')
-                res, msg, err = utils.openfaas_function_customizations(function_name)
+                res, msg, err = utils.openfaas_function_customizations(function_name, function_worker_name, setup.accelerators)
                 if err:
                     logger.error('openfaas_function_customizations failed:' 
                     + '\nmsg: ' + msg
@@ -1784,6 +1902,7 @@ def scheduler_executor_set_profile(function, scheduler_name, workers, debug):
 
         # place on 1 node #random is always 1
         if len(selected_nodes_set) == 1:
+            # nodeAffinity_required_filter1 = 'w4'
             nodeAffinity_required_filter1 = selected_nodes_set[0]
         # place on 2 nodes
         elif len(selected_nodes_set) == 2:
@@ -1867,7 +1986,8 @@ def scheduler_executor_apply(functions, profile_chart, profile_creation_roll_out
         function = functions[i]
         prof_name.append(function[0][0] + '-' + function[0][1])
         profile = function[3]
-
+        #??manipulate placements
+        # nodeAffinity_required_filter1.append('w4') 
         nodeAffinity_required_filter1.append(profile[0])
         nodeAffinity_required_filter2.append(profile[1])
         nodeAffinity_required_filter3.append(profile[2])
@@ -1969,7 +2089,11 @@ def scheduler_executor_apply(functions, profile_chart, profile_creation_roll_out
         queue_names.append(func_info[14])
         profile_names.append(func_info[15])
         version.append(func_info[16])
-        func_image_name.append(func_info[17])
+        #???if image name is especifically defined in setup.apps_image for this function name, get that; otherwise, do the usual.
+        if name in setup.apps_image:
+            func_image_name.append(setup.apps_image[name])
+        else:
+            func_image_name.append(func_info[17])
         
     # run command
     logger.info('scheduler_executor_apply:functions:cmd')
@@ -1998,6 +2122,9 @@ def scheduler_executor_apply(functions, profile_chart, profile_creation_roll_out
            + "function.annotations.linkerd={" + ','.join(linkerd) + "},"
            + "function.env.version={" + ','.join([str(i) for i in version]) + "}\""
            + " --skip-crds --wait")
+    #The helm command --wait conflicts with function customization patch that tries to quickly tell the function to not pull image from docker hub.
+    #because --wait first waits for the function to be deployed that is to pull image and then the function customization patch starts.???
+    #for now, I just tell it to pll a different image for particular ones.
 
     # log
     now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
@@ -2008,6 +2135,8 @@ def scheduler_executor_apply(functions, profile_chart, profile_creation_roll_out
     # simulate
     log_cmd = cmd + " --dry-run > " + file_name
     logger.info('scheduler_executor_apply:log_cmd:functions:' + log_cmd)
+    #save Yaml files
+    utils.shell(log_cmd)
     utils.shell(cmd)
 
     # actual cmd
@@ -2110,6 +2239,139 @@ def workload_shape_generator(test_duration_time, test_elapsed_time, base_concurr
         
     return round(new_concurrently)
 
+#spawners
+def workload_spawner(app_name, workload_type, iteration, interval, min_request_generation_interval, concurrently, time_based_termination, func_name, func_data, w_config, workload_shape, logger):
+    global under_test
+    global apps
+
+    logger.info('spawner started')
+
+    # sensor counter
+    created = 0
+
+    # iterations
+    logger.info('iterations started for ' + str(iteration) + ' repeats')
+    for i in range(iteration):
+        iter_started = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+        
+        # interarrival
+        interarrival = (interval[i] if "exponential" in workload_type else interval)
+        #min interarrival (not for sync)
+        if interarrival < min_request_generation_interval and workload_type != 'sync':
+            interarrival = min_request_generation_interval
+        #no interval for sync workloads
+        if workload_type == 'sync':
+            if interarrival > 0:
+                logger.warning('interarrival=' + str(interarrival) + ' while workload_type=' + workload_type + 'so I set interarrival=0')
+                interarrival = 0
+
+        if not 'poisson' in workload_type:
+            if isinstance(concurrently, float):
+                logger.error('Only if workload_type is poisson, concurrently can be a float number')
+
+        #concurrency
+        con = 1
+        if workload_type != 'sync':
+            # base concurrently (it may be manipulated by workload_shape_generator method)
+            con = (round(concurrently[i]) if "poisson" in workload_type else round(concurrently))
+            
+                #shape to adjust concurrently
+            test_duration_time = time_based_termination[1]
+            now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+            test_elapsed_time = now - test_started
+
+            con = workload_shape_generator(test_duration_time, test_elapsed_time, con, workload_shape, logger)
+        else:
+            if (round(concurrently[i]) if "poisson" in workload_type else round(concurrently)) > 1:
+                logger.warning('if workload_type=sync, concurrency is always 1 and no shape applies to it.')
+                #????implement concurrency > 1 for sync
+
+        #spawner index usd for sensor_id
+        spawner_index = threading.current_thread().name.split('-')[-1]
+
+        #start issuing requests
+
+        # gevent or thread
+        workload_worker = w_config[5]
+        
+        if workload_worker == "gevent":
+            #gevents are created and started thank to monkey.
+            pool = Pool(size=con)
+            for gevent_i in range(con):
+                pool.spawn(spawner_index, created, func_name, func_data, interarrival, workload_type, )
+            
+            if workload_type == 'sync':
+                pool.join()
+            #this is synchronous (blocking) and waits for all gevents to finish, otherwise kills them after timeout.
+            #pool = Pool(size=concurrently)
+            #timeout = gevent.Timeout(2, gevent.Timeout)
+            #timeout.start()
+
+            #try:
+            #    for gevent_i in range(concurrently):
+            #        pool.spawn(sample, session,i,i,"i")
+            #    pool.join()
+            #except gevent.Timeout as e:
+            #    print("rrrrr")
+            #finally:
+            #    timeout.close()
+            
+        # thread
+        elif workload_worker == "thread":
+            threads = []
+
+            for c in range(con):
+                created += 1
+                thread_create_sensor = threading.Thread(target=create_sensor,
+                                                        args=(spawner_index, created, func_name, func_data, interarrival, workload_type, ))
+                thread_create_sensor.name = "create_sensor" + "-" + func_name + "#" + str(spawner_index) + "#" + str(created)
+                threads.append(thread_create_sensor)
+
+            for t in threads:
+                t.start()
+        
+            if workload_type == 'sync':
+                for t in threads:
+                    t.join()
+
+        else:
+            logger.error("spawner: workload_worker not found (thread, gevent, or...")
+
+
+        # check termination: do not sleep after the final iteration or test is forced to finish
+        if i == iteration - 1 or under_test == False:
+            break
+        # Get iteration duration
+        now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+        iter_elapsed = now - iter_started
+        # check duration
+        if iter_elapsed < interarrival and workload_type != 'sync':
+            if iter_elapsed > (interarrival / 2):
+                logger.warning('Workload iteration #' + str(i) + ' rather long! (' + str(iter_elapsed) + ')')
+            # wait untill next iteration -deduct elapsed time
+            time.sleep(interarrival - iter_elapsed)
+
+        elif workload_type != 'sync':
+            logger.error('Workload: Iteration #' + str(i)
+                         + ' overlapped! (' + str(iter_elapsed) + ' elapsed) - next interval= ' + str(interarrival))
+            print('Workload Iteration #' + str(i) + ' overlapped!')
+            # ???skip next intervals that are passed
+        else:
+            logger.info('Iteration #' + str(i) + ' took ' + str(round(iter_elapsed,3)) + ' sec.')
+
+    # end iterations
+    now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+    logger.info('spawner: Generated: #' + str(created) + ' requests for '  + func_name + ': in ' + str(round(now - test_started, 2)) + ' sec')
+
+    # set created
+    app_index = [apps.index(app) for app in apps  if app[0]== app_name and app[1]== True][0]
+    apps[app_index][6] += created
+
+    logger.info('stop')
+
+
+
+
 #workload generator : a thread per application
 @app.route('/workload', methods=['POST'])
 def workload(my_app):
@@ -2125,12 +2387,13 @@ def workload(my_app):
     global under_test
     
     logger.info('workload: started')
-    # [2] w type: "static" or "poisson" or "exponential-poisson"
+    # [2] w type: "sync" or "static" or "poisson" or "exponential-poisson"
     # [3] workload: [[0]iteration [1]interval/exponential lambda(10=avg 8s)
     # [2]concurrently/poisson lambda (15=avg 17reqs ) [3] random seed (def=5)]
     # [4] func_name [5] func_data [6] created [7] recv
+    app_name = my_app[0]
 
-    workload_type = my_app[2]  # "static" or "poisson" or "exponential-poisson"
+    workload_type = my_app[2]  # "sync" or "static" or "poisson" or "exponential-poisson"
     w_config = my_app[3]
 
     app_session = requests.session()
@@ -2147,9 +2410,16 @@ def workload(my_app):
     interval = 0
     concurrently = 0
     seed = ""
+    #sync (back to back)
+    if workload_type == 'sync':
+        iteration = w_config[0]
+        #interval 
+        interval = 0
+        #concurrency ??? poisson can be also added for sync for dynamic number of workers
+        concurrently = w_config[2]
 
     #static interarrival and concurrently
-    if workload_type == 'static':
+    elif workload_type == 'static':
         iteration = w_config[0]
         # interval
         interval = w_config[1]
@@ -2219,11 +2489,14 @@ def workload(my_app):
     # my_app[6] sensor created counter
     # my_app[7] actuation recv counter
 
-    logger.info("workload: App {0} \n workload: {1} \n Iteration: {2} \n "
-                "Interval Avg. {3} ({4}-{5}) \n"
-                "Concurrently Avg. {6} ({7}--{8})\n"
-                " Seed {9} \n function {10} data {11}\n---------------------------".format(
-        func_name, workload_type, iteration,
+    #spawners, if sync workload type, concurrency means spawners and isolated spawners start in their own thread to generate sync requests with concurrency of 1; otherwise, one spawner starts and generates requests with defined concurrency. Multiple spawners and concurrency>1 is to be implemented????
+    spawners = 1 if workload_type != 'sync' else concurrently
+
+    logger.info("workload: App {0} \n workload: {1} spawners: {2} \n Iterations: {3} \n "
+                "Interval Avg. {4} ({5}-{6}) \n"
+                "Concurrently Avg. {7} ({8}--{9})\n"
+                " Seed {10} \n function {11} data {12}\n---------------------------".format(
+        func_name, workload_type, str(spawners), iteration,
         round(sum(interval) / len(interval), 3) if "exponential" in workload_type else interval,
         round(min(interval), 3) if "exponential" in workload_type else "--",
         round(max(interval), 3) if "exponential" in workload_type else "--",
@@ -2233,113 +2506,145 @@ def workload(my_app):
         seed, func_name, func_data))
 
     generator_st = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
-    # sensor counter
-    created = 0
-    # iterations
-    for i in range(iteration):
-        iter_started = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
 
-        # interarrival
-        interarrival = (interval[i] if "exponential" in workload_type else interval)
-        if interarrival < min_request_generation_interval:
-            interarrival = min_request_generation_interval
+    thread_spawners = []
+    for spawner_index in range(spawners):
+        thread_spawner = threading.Thread(target=workload_spawner,
+                args=(app_name, workload_type, iteration, interval, min_request_generation_interval, concurrently, time_based_termination, func_name, func_data, w_config, workload_shape, logger,))
+        thread_spawner.name = "spawner" + "-" + func_name + "-" + str(spawner_index)
+        thread_spawners.append(thread_spawner)
 
-        # base concurrently (it may be manipulated by workload_shape_generator method)
-        con = (round(concurrently[i]) if "poisson" in workload_type else round(concurrently))
+    for t in thread_spawners:
+        t.start()
 
-            #shape to adjust concurrently
-        test_duration_time = time_based_termination[1]
-        now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
-        test_elapsed_time = now - test_started
+    logger.info('waiting for ' + str(spawners) + ' spawners to finish...')
+    for t in thread_spawners:
+        t.join()
 
-        con = workload_shape_generator(test_duration_time, test_elapsed_time, con, workload_shape, logger)
+    logger.info('all spawners finished.')
 
-        #start issuing requests
+    # # sensor counter
+    # created = 0
 
-        # gevent or thread
-        workload_worker = w_config[5]
+    # # iterations
+    # for i in range(iteration):
+    #     iter_started = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+
+    #     # interarrival
+    #     interarrival = (interval[i] if "exponential" in workload_type else interval)
+    #     #min interarrival (not for sync)
+    #     if interarrival < min_request_generation_interval and workload_type != 'sync':
+    #         interarrival = min_request_generation_interval
+
+    #     if not 'poisson' in workload_type:
+    #         if isinstance(concurrently, float):
+    #             logger.error('Only if workload_type is poisson, concurrently can be a float number')
+
+    #     # base concurrently (it may be manipulated by workload_shape_generator method)
+    #     con = (round(concurrently[i]) if "poisson" in workload_type else round(concurrently))
         
-        if workload_worker == "gevent":
-            #gevents are created and started thank to monkey.
-            pool = Pool(size=con)
-            for i in range(con):
-                pool.spawn(create_sensor, created, func_name, func_data, interarrival, )
-            
-            #this is synchronous (blocking) and waits for all gevents to finish, otherwise kills them after timeout.
-            #pool = Pool(size=concurrently)
-            #timeout = gevent.Timeout(2, gevent.Timeout)
-            #timeout.start()
+    #         #shape to adjust concurrently
+    #     test_duration_time = time_based_termination[1]
+    #     now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+    #     test_elapsed_time = now - test_started
 
-            #try:
-            #    for i in range(concurrently):
-            #        pool.spawn(sample, session,i,i,"i")
-            #    pool.join()
-            #except gevent.Timeout as e:
-            #    print("rrrrr")
-            #finally:
-            #    timeout.close()
-            
-        # thread
-        elif workload_worker == "thread":
-            threads = []
+    #     con = workload_shape_generator(test_duration_time, test_elapsed_time, con, workload_shape, logger)
 
-            for c in range(con):
-                created += 1
-                thread_create_sensor = threading.Thread(target=create_sensor,
-                                                        args=(created, func_name, func_data, interarrival,))
-                thread_create_sensor.name = "create_sensor" + "-" + func_name + "#" + str(created)
-                threads.append(thread_create_sensor)
+    #     #start issuing requests
 
-            for t in threads:
-                t.start()
+    #     # gevent or thread
+    #     workload_worker = w_config[5]
         
-        else:
-            logger.error("workload: workload_worker not found")
-        # check termination: do not sleep after the final iteration or test is forced to finish
-        if i == iteration - 1 or under_test == False:
-            break
-        # Get iteration duration
-        now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
-        iter_elapsed = now - iter_started
-        # check duration
-        if iter_elapsed < interarrival:
-            if iter_elapsed > (interarrival / 2):
-                logger.warning('Workload iteration #' + str(i) + ' rather long! (' + str(iter_elapsed) + ')')
-            # wait untill next iteration -deduct elapsed time
-            time.sleep(interarrival - iter_elapsed)
+    #     if workload_worker == "gevent":
+    #         #gevents are created and started thank to monkey.
+    #         pool = Pool(size=con)
+    #         for gevent_i in range(con):
+    #             pool.spawn(create_sensor, created, func_name, func_data, interarrival, )
+            
+    #         #this is synchronous (blocking) and waits for all gevents to finish, otherwise kills them after timeout.
+    #         #pool = Pool(size=concurrently)
+    #         #timeout = gevent.Timeout(2, gevent.Timeout)
+    #         #timeout.start()
 
-        else:
-            logger.error('Workload: Iteration #' + str(i)
-                         + ' overlapped! (' + str(iter_elapsed) + ' elapsed) - next interval= ' + str(interarrival))
-            print('Workload Iteration #' + str(i) + ' overlapped!')
-            # ???skip next intervals that are passed
-    # break
-    now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
-    logger.info('workload: All Generated: ' + func_name + ': in ' + str(round(now - test_started, 2)) + ' sec')
+    #         #try:
+    #         #    for gevent_i in range(concurrently):
+    #         #        pool.spawn(sample, session,i,i,"i")
+    #         #    pool.join()
+    #         #except gevent.Timeout as e:
+    #         #    print("rrrrr")
+    #         #finally:
+    #         #    timeout.close()
+            
+    #     # thread
+    #     elif workload_worker == "thread":
+    #         threads = []
 
-    # set created
-    apps[apps.index(my_app)][6] = created
+    #         for c in range(con):
+    #             created += 1
+    #             thread_create_sensor = threading.Thread(target=create_sensor,
+    #                                                     args=(created, func_name, func_data, interarrival,))
+    #             thread_create_sensor.name = "create_sensor" + "-" + func_name + "#" + str(created)
+    #             threads.append(thread_create_sensor)
+
+    #         for t in threads:
+    #             t.start()
+        
+    #     else:
+    #         logger.error("workload: workload_worker not found")
+
+
+    #     # check termination: do not sleep after the final iteration or test is forced to finish
+    #     if i == iteration - 1 or under_test == False:
+    #         break
+    #     # Get iteration duration
+    #     now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+    #     iter_elapsed = now - iter_started
+    #     # check duration
+    #     if iter_elapsed < interarrival and workload_type != 'sync':
+    #         if iter_elapsed > (interarrival / 2):
+    #             logger.warning('Workload iteration #' + str(i) + ' rather long! (' + str(iter_elapsed) + ')')
+    #         # wait untill next iteration -deduct elapsed time
+    #         time.sleep(interarrival - iter_elapsed)
+
+    #     else:
+    #         logger.error('Workload: Iteration #' + str(i)
+    #                      + ' overlapped! (' + str(iter_elapsed) + ' elapsed) - next interval= ' + str(interarrival))
+    #         print('Workload Iteration #' + str(i) + ' overlapped!')
+    #         # ???skip next intervals that are passed
+    
+    # # end iterations
+    # now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+    # logger.info('workload: All Generated: ' + func_name + ': in ' + str(round(now - test_started, 2)) + ' sec')
+
+    # # set created
+    # apps[apps.index(my_app)][6] = created
+
+
+
     # ????if some are dropped. they are not added to app[7], so this condition is always false
     # wait for all actuators of this app, or for timeout, then move
-    if apps[apps.index(my_app)][7] < apps[apps.index(my_app)][6]:
+    #???it assumes timeout is always > 30 sec
+    app_index = [apps.index(app) for app in apps  if app[0]== app_name and app[1]== True][0]
+
+    if apps[app_index][7] < apps[app_index][6]:
         logger.info('workload: ' + my_app[4] + ' sleep 5 sec: '
-                    + str(apps[apps.index(my_app)][6]) + ' > ' + str(apps[apps.index(my_app)][7]))
+                    + str(apps[app_index][6]) + ' > ' + str(apps[app_index][7]))
         time.sleep(5)
-    if apps[apps.index(my_app)][7] < apps[apps.index(my_app)][6]:
+    if apps[app_index][7] < apps[app_index][6]:
         logger.info('workload: func: ' + my_app[4] + ' sleep 10sec: '
-                    + str(apps[apps.index(my_app)][6]) + ' > ' + str(apps[apps.index(my_app)][7]))
+                    + str(apps[app_index][6]) + ' > ' + str(apps[app_index][7]))
         time.sleep(10)
-    if apps[apps.index(my_app)][7] < apps[apps.index(my_app)][6]:
+    if apps[app_index][7] < apps[app_index][6]:
         logger.info('workload: func: ' + my_app[4] + ' sleep 15sec: '
-                    + str(apps[apps.index(my_app)][6]) + ' > ' + str(apps[apps.index(my_app)][7]))
+                    + str(apps[app_index][6]) + ' > ' + str(apps[app_index][7]))
         time.sleep(15)
-    if apps[apps.index(my_app)][7] < apps[apps.index(my_app)][6]:
+    if apps[app_index][7] < apps[app_index][6]:
         logger.info('workload: func: ' + my_app[4] + ' sleep ' + str(max_request_timeout - 30 + 1) + 'sec: '
-                    + str(apps[apps.index(my_app)][6]) + ' > ' + str(apps[apps.index(my_app)][7]))
+                    + str(apps[app_index][6]) + ' > ' + str(apps[app_index][7]))
         time.sleep(max_request_timeout - 30 + 1)
 
     logger.info("Workload: done, func: " + my_app[4] + " created:" + str(my_app[6])
-                + " recv:" + str(apps[apps.index(my_app)][7]))
+                + " recv:" + str(apps[app_index][7]))
 
     # App workload is finished, call main_handler if timer is not already stopped
     if under_test:
@@ -2390,16 +2695,18 @@ def all_apps_done():
     logger.info('all_apps_done: stop: ' + str(all_apps_done))
     return all_apps_done
 
+backend_discovery_counter = 0
+def backend_discovery():
+    global load_balancing
+    backends = load_balancing['backend_discovery']['backends']
 
-def create_sensor(counter, func_name, func_data, admission_deadline):
+def create_sensor(spawner_index, counter, func_name, func_data, admission_deadline, workload_type):
     global sessions
     global session_enabled
     global pics_num
     global pics_folder
     global sensor_log
-    global gateway_IP
-    global openfaas_gateway_port
-    global routes
+    global load_balancing
     global node_IP
     global overlapped_allowed
     global debug
@@ -2408,7 +2715,7 @@ def create_sensor(counter, func_name, func_data, admission_deadline):
     global functions
     global boot_up_delay
     global lock
-
+    
     # one-off sensor
     sample_started = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
     try:
@@ -2417,14 +2724,16 @@ def create_sensor(counter, func_name, func_data, admission_deadline):
 
         #????Only pics image if yolo3 or ssd is in the function name. A parameter in the app config should tell if a function read images or not and it should be passed to the sensor_create.
         if 'yolo3' in func_name or 'ssd' in func_name:
+
             file_name = 'pic_' + str(counter % pics_num if counter % pics_num != 0  else 1) + '.jpg'
             file = {'image_file': open(pics_folder + file_name, 'rb')}
 
         # create sensor id
-        sensor_id = str(sample_started) + '#' + func_name + '-#' + str(counter)
+        sensor_id = str(sample_started) + '#' + func_name + '#' + str(spawner_index) + '#' + str(counter)
+        
         # [0] func_name [1]created, [2]submitted/admission-dur, [3]queue-dur, [4]exec-dur,
-        # [5] finished, [6]rt, [7] status, [8] repeat, [9] objects, [10] accuracy
-        sensor_log[sensor_id] = [func_name, sample_started, 0, 0, 0, 0, 0, -1, 0, [], []]
+        # [5] finished, [6]rt, [7] status, [8] repeat, [9] executor_ip, [10] objects, [11] accuracy
+        sensor_log[sensor_id] = [func_name, sample_started, 0, 0, 0, 0, 0, -1, 0, "n/a", "n/a", [], []]
 
         # drop if no energy on node (in battery sim mode only)
         if battery_cfg[0] == True:
@@ -2446,13 +2755,29 @@ def create_sensor(counter, func_name, func_data, admission_deadline):
 
         # value: Send async req to yolo function along with image_file
         if func_data == 'value':
+            #HOW about if workload_type is sync???
             # no response is received, just call back is received
             ##if normal functions, the route is /function_name, but if trafficsplit is used, the gateway function is used (depicted in 'service' key of load_balancing, set by setup.py)
-            function_route = func_name if routes['function_route'] == 'func_name' else routes['function_route']
+            
+            #url
+            listeners = load_balancing['frontends'][0]['listeners']
+            ip = listeners['ip']
+            port = str(listeners['port'])
+            path = listeners['path']
+            postfix = listeners['postfix'] if listeners['postfix'] else ''
+            #convert postfix to func_name
+            postfix = func_name if postfix == 'func_name' else postfix
+            url = 'http://' + ip + ':' + port + path + postfix
 
-            url = 'http://' + gateway_IP + ':' + openfaas_gateway_port + '/async-function/' + function_route
-            header = {'X-Callback-Url': 'http://' + node_IP + ':5000/actuator',
-                      'Sensor-ID': sensor_id}
+            #header
+            #Sensor-ID
+            header ={}
+            header['Sensor-ID'] = sensor_id
+
+            #X-Callback-Url
+            if workload_type == 'async':
+                heder['X-Callback-Url'] = 'http://' + node_IP + ':5000/actuator'
+
             #??? only ssd and yolo is accepted for image load
             img = (file if 'yolo3' in func_name or 'ssd' in func_name else None)
 
@@ -2463,46 +2788,106 @@ def create_sensor(counter, func_name, func_data, admission_deadline):
             elif 'irrigation' in func_name:
                 json_list = {"user": sensor_id, "temperature": "10", "humidity": "5",
                              "soil_temperature": "3", "water_level": "1", "spatial_location": "1"}
-            # send
-            if session_enabled:
-                response = sessions[func_name].post(url, headers=header, files=img, json=json_list,
+
+            #send
+            try:
+                #through session
+                if session_enabled:
+                    #open connection   
+                    with sessions[func_name] as s:
+                        #get = sync
+                        if workload_type == 'sync':  
+                            response = s.get(url, headers=header, files=img, json=json_list,
+                                                    timeout=max_request_timeout)
+
+                        #or post = async
+                        else:
+                            response = s.post(url, headers=header, files=img, json=json_list,
                                                     timeout=sensor_admission_timeout)
-            else:
-                response = requests.post(url, headers=header, files=img, json=json_list,
-                                         timeout=sensor_admission_timeout)
+                    #close connection
+
+                #through requestes
+                else:
+                    #get
+                    if workload_type == 'sync':
+                        response = requests.get(url, headers=header, files=img, json=json_list,
+                                                    timeout=max_request_timeout)
+                    
+                    #post
+                    else:
+                        response = requests.post(url, headers=header, files=img, json=json_list,
+                                                    timeout=sensor_admission_timeout)
+
+                # no response is received
+                # if response.status_code == 200 or response.status_code == 202:
+                if response.ok:
+                    if debug: logger.info('Reuest success ' + url)
+                else:
+                    logger.warning('Request failed - code ' + str(response.status_code))
+                
+            except Exception as e:
+                logger.error('Request for: ' + func_name + ': ' + file_name + ': sending failed.\n' + str(e) + '\nThis response object is not handled by code.')
 
 
         # Pioss: Send the image to Pioss. Then, it notifies the function.
         elif func_data == 'reference':
+            #image path, not file
+            img = (pics_folder + file_name if 'yolo3' in func_name or 'ssd' in func_name else None)
+            #send to pioss and get response (if not sync, only submission response is received, but is sync, the execution response is received)
+            response = pioss(func_name, file_name,'internal-write', img, sensor_id, workload_type)
+            
+            if isinstance(response, str):
+                response = requests.Response
+                response.status_code = 404
 
-            url = 'http://' + node_IP + ':5000/pioss/api/write/' + func_name + '/' + file_name
-            #???only ssd and yolo is accepted
-            img = (file if 'yolo3' in func_name or 'ssd' in func_name else None)
-            header = {'Sensor-ID': sensor_id}
-            if session_enabled:
-                response = sessions[func_name].post(url, headers=header, timeout=sensor_admission_timeout, files=img)
-            else:
-                response = requests.post(url, headers=header, timeout=sensor_admission_timeout, files=img)
+            # url = 'http://' + node_IP + ':5000/pioss/api/write/' + func_name + '/' + file_name
+            # #???only ssd and yolo is accepted
+            # img = (file if 'yolo3' in func_name or 'ssd' in func_name else None)
+            # header = {'Sensor-ID': sensor_id}
+ 
+            # try:
+            #     if session_enabled:
+            #         response = sessions[func_name].post(url, headers=header, timeout=int(sensor_admission_timeout), files=img)
+            #     else:
+            #         response = requests.post(url, headers=header, timeout=sensor_admission_timeout, files=img)
+            # except Exception as e:
+            #     logger.error('post request: ' + str(e))
+
             # no response is received
             # finished when next operation (sending actual requst to function) is done.
         else:  # Minio
             pass
 
         # handle 404 error ?????
-        if response.status_code == 202 or response.status_code == 200:
+        # if response.status_code == 202 or response.status_code == 200:
+        if response.ok: #status_code < 400
 
             now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
             sample_elapsed = now - sample_started
             if debug: logger.info('submitted (' + str(round(sample_elapsed, 2)) + 's)')
-            # Set admission duration
-            sensor_log[sensor_id][2] = round(sample_elapsed, 2)
-            if (sample_elapsed) >= admission_deadline:
-                logger.warning('admission overlapped (' + str(sample_elapsed) + 's)')
-                if not overlapped_allowed:
-                    logger.error('admission overlapped (' + str(sample_elapsed) + 's)')
+            # Set admission duration. If sync, it is zero
+            if workload_type == 'async':
+                sensor_log[sensor_id][2] = round(sample_elapsed, 2)
 
-        else:
-            logger.error(func_name + '#' + str(counter) + '\n' + str(response.status_code))
+            #check submission overlapping
+            if workload_type == 'async':
+                if (sample_elapsed) >= admission_deadline:
+                    logger.warning('admission overlapped (' + str(sample_elapsed) + 's)')
+                    if not overlapped_allowed:
+                        logger.error('admission overlapped (' + str(sample_elapsed) + 's)')
+
+        else: 
+            #request failed
+            if workload_type == 'sync':
+                logger.warning('sensor_id=' + sensor_id + ' code=' + str(response.status_code))
+            #submission failed
+            else:
+                logger.error('sensor_id=' + sensor_id + ' code=' + str(response.status_code))
+
+        #if sync, set actuator because response contains the final response of request and no callback will be sent to actuator by function
+        if workload_type == 'sync':
+            owl_actuator(sensor_id, response)
+
     except requests.exceptions.ReadTimeout as ee:
         logger.error('ReadTimeout:' + func_name + '#' + str(counter) + '\n' + str(ee))
     except requests.exceptions.RequestException as e:
@@ -2510,70 +2895,226 @@ def create_sensor(counter, func_name, func_data, admission_deadline):
     except Exception as eee:
         logger.error('Exception:' + func_name + '#' + str(counter) + '\n' + str(eee))
 
+endpoint_counter = 0
+def event_bus(ip):
+    global endpoint_counter 
+    endpoint_counter += 1
+
+    if endpoint_counter % 5 == 0:
+        return '10.0.0.92'
+    elif endpoint_counter % 5 == 1:
+        return '10.0.0.93'
+    elif endpoint_counter % 5 == 2:
+        return '10.0.0.94'
+    elif endpoint_counter % 5 == 3:
+        return '10.0.0.95'
+    elif endpoint_counter % 5 == 4:
+        return '10.0.0.97'
+    else:
+        logger.error('endpoint_counter module / 5 out of range')
 
 # Pi Object Storage System (Pioss)
 # API-level and Method-level route decoration
 @app.route('/pioss/api/write/<func_name>/<file_name>', methods=['POST'], endpoint='write_filename')
 @app.route('/pioss/api/read/<func_name>/<file_name>', methods=['GET'], endpoint='read_filename')
-def pioss(func_name, file_name):
+def pioss(func_name, file_name,call_type='http', image_file=None, sensor_id=None, workload_type=None):
     global file_storage_folder
     global logger
     global lock
-    global gateway_IP
-    global openfaas_gateway_port
-    global routes
+    global load_balancing
     global sensor_admission_timeout
     global debug
     global sessions
     global session_enabled
+    global max_request_timeout
+
+    #method
+    if call_type == 'http':
+        if request.method == 'POST':
+            call_type = 'http-write'
+
+    if call_type == 'internal-write':
+        if image_file == None or sensor_id == None:
+            logger.error('image_file and sensor_id are required for Pioss internal-write')
+
+
     # write operations
-    if request.method == 'POST':
-        if debug: logger.info('Pioss Write')
+    if call_type == 'http-write' or call_type == 'internal-write':
+        if debug: 
+            logger.info('Pioss Write')
+
+        # with lock:??
         try:
-            with lock:
-                try:
-                    # get image
-                    file = request.files['image_file']
-                except:
-                    logger.error('pioss: ' + func_name + ': ' + file_Name + ': unable to get')
-                try:
-                    # download
-                    file.save(file_storage_folder + file_name)
-                    if debug: logger.info('Pioss: write done - func:' + func_name + ' - ' + file_name)
-                except:
-                    logger.error('pioss: ' + func_name + ': ' + file_Name + ': unable to download')
-
-                # notification: trigger the object detection function
-                # curl -X POST -H "X-Callback-Url: http://10.0.0.91:5000/actuator" -H "Image-URL:http://10.0.0.91:5000/pioss/api/read/pic_41.jpg" http://10.0.0.91:31112/async-function/yolo3
-                # Example: curl -X POST -F image_file=@./storage/pic_121.jpg  http://10.0.0.90:31112/function/yolo3
-                # add sensor-id to -H
-
-                # Trigger the function and pass Image_URL
-                ##if normal functions, the route is /function_name, but if trafficsplit is used, the gateway function is used (depicted in 'service' key of load_balancing, set by setup.py)
-                function_route = func_name if routes['function_route'] == 'func_name' else routes['function_route']
-
-                url = 'http://' + gateway_IP + ':' + openfaas_gateway_port + '/async-function/' + function_route
-                image_URL = 'http://' + node_IP + ':5000/pioss/api/read/' + func_name + '/' + file_name
-                callback_url = 'http://' + node_IP + ':5000/actuator'
-                header = {'X-Callback-Url': callback_url,
-                          'Image-URL': image_URL,
-                          'Sensor-ID': str(request.headers.get('Sensor-ID'))}
-                try:
-                    if session_enabled:
-                        response = sessions[func_name].post(url, headers=header, timeout=sensor_admission_timeout)
-                    else:
-                        response = requests.post(url, headers=header, timeout=sensor_admission_timeout)
-                except:
-                    logger.error('pioss: ' + func_name + ': ' + file_Name + ': sending failed')
-                # no response is received
-                if response.status_code == 200 or response.status_code == 202:
-                    if debug: logger.info('Pioss: Notification Sent: ' + url)
-                else:
-                    logger.error('Pioss: Failed')
-                return "write&notification done"
+            # get image
+            if call_type == 'http-write':
+                image = request.files['image_file']
+            else:
+                image = image_file
         except:
-            logger.error('Pioss: write failed (make sure openfaas components are up and deployed on master only)')
+            logger.error('pioss: ' + func_name + ': ' + file_name + ': unable to get')
+            return 'pioss: ' + func_name + ': ' + file_name + ': unable to get'
+        try:
+            #store file
+            # if received from http request, download it by save method. how about put in minio???
+            if call_type == 'http-write':
+                image.save(file_storage_folder + file_name)
+            else:
+                #if received internally, copy the file to the storage foled by its received path
+                shutil.copyfile(image, file_storage_folder + file_name)
 
+            if debug: logger.info('Pioss: write done - func:' + func_name + ' - ' + file_name)
+        except Exception as e:
+            logger.error('pioss: ' + func_name + ': ' + file_name + ': unable to download\n' + str(e))
+            return 'pioss: ' + func_name + ': ' + file_name + ': unable to download'
+
+        # notification: trigger the object detection function
+        # curl -X POST -H "X-Callback-Url: http://10.0.0.91:5000/actuator" -H "Image-URL:http://10.0.0.91:5000/pioss/api/read/w1-ssd/pic_41.jpg" http://10.0.0.91:31112/async-function/yolo3
+        #curl -X GET -i -H "Image-URL: http://localhostmachine:5500/pioss/api/read/w3-ssd/pic_41.jpg"  http://10.0.0.90:31112/function/w5-ssd/
+        #hey -c 1 -z 5m -m GET -H "Image-URL:http://10.0.0.92:5005/" -t 15  http://10.0.0.90:31112/function/w2-ssd
+        # Example: curl -X POST -F image_file=@./storage/pic_121.jpg  http://10.0.0.90:31112/function/yolo3
+        # add sensor-id to -H
+
+        # Trigger the function and pass Image_URL
+            
+        #url
+        listeners = load_balancing['frontends'][0]['listeners']
+        ip = listeners['ip']
+        port = str(listeners['port'])
+        path = listeners['path']
+        postfix = listeners['postfix'] if listeners['postfix'] else ''
+        #convert postfix to func_name
+        postfix = func_name if postfix == 'func_name' else postfix
+        url = 'http://' + ip + ':' + port + path + postfix
+
+        ##if normal functions, the route is /function_name, but if trafficsplit is used, the gateway function is used (depicted in 'service' key of load_balancing, set by setup.py)
+        # function_route = func_name if routes['function_route'] == 'func_name' else routes['function_route']
+
+        # if workload_type == 'sync':
+        #     #no async prefix
+        #     url = 'http://' + gateway_IP + ':' + openfaas_gateway_port + '/function/' + function_route    
+        # else:
+        #     url = 'http://' + gateway_IP + ':' + openfaas_gateway_port + '/async-function/' + function_route
+        
+        #header
+        #Sensor-ID
+        header ={}
+        header['Sensor-ID'] = str(request.headers.get('Sensor-ID')) if call_type == 'http-write' else sensor_id
+
+        #X-Callback-Url
+        if workload_type == 'async':
+            heder['X-Callback-Url'] = 'http://' + node_IP + ':5000/actuator'
+
+        #Use-Local-Image 
+        if len(load_balancing['add_headers']) and 'Use-Local-Image' in load_balancing['add_headers']:
+            header['Use-Local-Image'] = load_balancing['add_headers']['Use-Local-Image']
+
+        #or Image-URL
+        else:
+            #internal headers
+            #Connection
+            if len(load_balancing['add_headers']) and 'Internal-Connection' in load_balancing['add_headers']:
+                header['Internal-Connection'] = load_balancing['add_headers']['Internal-Connection']
+            #Session
+            if len(load_balancing['add_headers']) and 'Internal-Session' in load_balancing['add_headers']:
+                header['Internal-Session'] = load_balancing['add_headers']['Internal-Session']
+
+            #???replace all 5000 with admin port in load_balancing
+            #build an API for given image
+            #ip 
+            #decentralized-tinyobj
+            ip = ''
+            if 'read' in load_balancing['object_storage'] and load_balancing['object_storage']['read']['type'] == 'decentralized-tinyobj':
+                #local-generator
+                if load_balancing['object_storage']['read']['ip'] == 'local-generator':
+                    ip = node_IP
+                #local-executor For test-purposes only. Ask function to download image from its local host.
+                elif load_balancing['object_storage']['read']['ip'] == 'local-executor':
+                    ip = 'localhostmachine'
+
+                else:
+                    logger.error( 'object-storage read ip ' + load_balancing['object_storage']['read']['ip'] + ' not found')
+            #centralized-tinyobj
+            elif 'read' in load_balancing['object_storage'] and load_balancing['object_storage']['read']['type'] == 'centralized-tinyobj':
+                ip = load_balancing['object_storage']['read']['ip']
+            #centralized-minio
+            elif 'read' in load_balancing['object_storage'] and load_balancing['object_storage']['read']['type'] == 'centralized-minio':
+                ip = load_balancing['object_storage']['read']['ip']
+            #decentralized-minio
+            elif 'read' in load_balancing['object_storage'] and load_balancing['object_storage']['read']['type'] == 'decentralized-minio':
+                #local-generator
+                if load_balancing['object_storage']['read']['ip'] == 'local-generator':
+                    ip = node_IP
+                #local-executor For test-purposes only. Ask function to download image from its local host.
+                elif load_balancing['object_storage']['read']['ip'] == 'local-executor':
+                    ip = 'localhostmachine'
+                else:
+                    logger.error( 'object-storage read ip ' + load_balancing['object_storage']['read']['ip'] + ' not found')
+
+                ##temp?????
+                # ip = event_bus(ip)
+
+            else:
+                logger.error('make sure object_storage info is correct')
+
+            #port
+            port = load_balancing['object_storage']['read']['port']
+
+            
+            #set Image-URL
+            resource = '/pioss/api/read/'
+            bucket = func_name
+            object_name = file_name
+            #minio address
+            if load_balancing['object_storage']['read']['type'] == 'centralized-minio' or load_balancing['object_storage']['read']['type'] == 'decentralized-minio':
+                resource = load_balancing['object_storage']['read']['resource']
+                bucket = load_balancing['object_storage']['read']['bucket']
+
+            header['Image-URL'] = 'http://' + ip + ':' + str(port) + resource + bucket + '/' + object_name
+            
+        #send
+        try:
+            #through session
+            if session_enabled:
+                #open connection   
+                with sessions[func_name] as s:
+                    #get
+                    if workload_type == 'sync':
+                        response = s.get(url, headers=header, timeout=max_request_timeout)    
+                        #or
+                        # header['Connection'] = 'close'
+                        # response = sessions[func_name].get(url, headers=header, timeout=max_request_timeout)
+                    #or post
+                    else:
+                        response = s.post(url, headers=header, timeout=sensor_admission_timeout)
+                #close connection
+
+            #through requestes
+            else:
+                #get
+                if workload_type == 'sync':
+                    response = requests.get(url, headers=header, timeout=max_request_timeout)
+                
+                #post
+                else:
+                    response = requests.post(url, headers=header, timeout=sensor_admission_timeout)
+
+            # no response is received
+            # if response.status_code == 200 or response.status_code == 202:
+            if response.ok:
+                if debug: logger.info('Pioss: Notification Sent: ' + url)
+            else:
+                if workload_type == 'sync':
+                    logger.warning('Pioss: Failed - code ' + str(response.status_code))
+                else:
+                    logger.error('Pioss: Failed - code ' + str(response.status_code))
+            
+            return response
+            # return "write&notification done"
+            
+        except Exception as e:
+            logger.error('pioss: ' + func_name + ': ' + file_name + ': sending failed.\n' + str(e))
+            return 'pioss: ' + func_name + ': ' + file_name + ': sending failed'
+            
 
     # read operation
     elif request.method == 'GET':
@@ -2593,8 +3134,24 @@ def pioss(func_name, file_name):
         return "Failed"
 
 
+#pioss_read
+# @app.route('/pioss/api/read/<func_name>/<file_name>', methods=['GET'], endpoint='read_filename')
+def pioss_read(func_name, file_name):
+    global file_storage_folder
+
+    # get file
+    img = open(file_storage_folder + file_name, 'rb').read()
+    # preapare response (either make_response or send_file)
+    response = make_response(img)
+    response.headers.set('Content-Type', 'image/jpeg')
+    response.headers.set('Content-Disposition', 'attachment', filename=file_name)
+
+    return response
+    # return send_file(io.BytesIO(img), attachment_filename=file_name)
+
+
 @app.route('/actuator', methods=['POST'])
-def owl_actuator():
+def owl_actuator(sensor_id=None, response_obj=None):
     global logger
     global actuations
     global response_time
@@ -2605,15 +3162,34 @@ def owl_actuator():
     global peers
     global suspended_replies
     global debug
+
     #if service mesh is used, returned X-Function-Name header shows the name of gateway function not the function that issued the requesy????
     with lock:
-        if debug: logger.info('actuator: '
-                              + str(request.headers.get('Sensor-Id')) + ' - code: '
-                              + str(request.headers.get("X-Function-Status")) + ' - '
-                              + str(round(float(request.headers.get('X-Duration-Seconds')), 2)
-                                    if request.headers.get('X-Duration-Seconds') is not None
-                                       and request.headers.get('X-Duration-Seconds') != "" else "-0.0") + ' s')
-        data = request.get_data(as_text=True)
+        #get headers
+        headers = None
+        try:
+            if response_obj is None:
+                headers = request.headers
+            else:
+                headers = response_obj.headers
+        except:
+            logger.error('owl_actuator: no headers object found in response because requests is not sent')
+
+        if debug: logger.info('actuator:'
+                              + ' sensor_id=' + str(headers.get('Sensor-Id')) 
+                              + ', status_code=' + str(response_obj.status_code if response_obj else headers.get("X-Function-Status"))
+                              + ', x-duration-seconds=' + str(round(float(headers.get('X-Duration-Seconds')), 2)
+                                                        if headers.get('X-Duration-Seconds') 
+                                                            and headers.get('X-Duration-Seconds') != "" else "--") + ' s'
+                                + (', by ' + str(headers.get('X-POD-HOST-IP')) if headers.get('X-POD-HOST-IP') else '-')
+                                + '/' + (str(headers.get('X-NODE-NAME')) if headers.get('X-NODE-NAME') else '-')
+                                + '/' + (str(headers.get('X-POD-NAME')) if headers.get('X-POD-NAME') else '-')
+                                + '/' + (str(headers.get('X-POD-IP')) if headers.get('X-POD-IP') else '-'))
+        #get json data
+        if response_obj is None:
+            data = request.get_data(as_text=True)
+        else:
+            data = response_obj.text
 
 
         actuations += 1
@@ -2621,34 +3197,70 @@ def owl_actuator():
         # get sensor id
         # X-Function-Status: 500
         # X-Function-Name: yolo3
-        get_id = str(request.headers.get('Sensor-Id'))
+        get_id = str(headers.get('Sensor-Id'))
         # print('get_id: ' + str(get_id))
 
         # if failed
         if get_id == 'None':
             # if debug: logger.warning('Actuator - Sensor-ID=None| app: ' +request.headers.get("X-Function-Name") + '| code: ' + request.headers.get("X-Function-Status") +' for #' + str(actuations))
-            if debug: logger.warning("Actuator: " + str(request.headers))
-            func_name = str(request.headers.get("X-Function-Name"))
-            status = int(request.headers.get("X-Function-Status"))
-            # IGNORED
-            # NOTE: X-start-Time in headers is based on a different timeslot and format than my timestamp
-            # sometimes X-Start-Time header is missed in replies with code 500, so set start_time=now
-            if str(request.headers.get("X-Start-Time")) != 'None':
-                start_time = float(request.headers.get("X-Start-Time"))
-            else:
-                start_time = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
-            # END IGNORED
+            if debug: logger.warning("Actuator (failed) headers: " + str(headers))
 
-            stop_time = start_time = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
-            exec_dur = float(request.headers.get("X-Duration-Seconds"))
+            if response_obj is None: #not sync
+                #sample for code 500 headers
+                '''Host: 10.0.0.97:5000
+                User-Agent: Go-http-client/1.1
+                Content-Length: 0
+                Date: Tue, 20 Sep 2022 04:02:26 GMT
+                L5D-Proxy-Error: unexpected error
+                X-Call-Id: fe13b0ed-542c-4f1b-8720-b152a4342498
+                X-Duration-Seconds: 15.068210
+                X-Function-Name: gw-func
+                X-Function-Status: 500
+                X-Start-Time: 1663646532641585182
+                Accept-Encoding: gzip'''
 
-            # add to suspended replies
-            suspended_replies.append([func_name, status, stop_time, exec_dur])
+                #???in service mesh, this returns the gateway function name not the actual function name.
+                func_name = str(headers.get("X-Function-Name"))
+                status = int(headers.get("X-Function-Status"))
+                # IGNORED
+                # NOTE: X-start-Time in headers is based on a different timeslot and format than my timestamp
+                # sometimes X-Start-Time header is missed in replies with code 500, so set start_time=now
+                if str(headers.get("X-Start-Time")) != 'None':
+                    start_time = float(headers.get("X-Start-Time"))
+                else:
+                    start_time = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+                # END IGNORED
+
+                stop_time = start_time = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+                exec_dur = float(headers.get("X-Duration-Seconds"))
+
+                # add to suspended replies
+                suspended_replies.append([func_name, status, stop_time, exec_dur])
+
+            else: #sync
+            #in sync, openfaas does not return its ALL built-in X-xxxx-xxx headers, only returns X-Duration-Seconds and X-Call-ID
+                
+                exec_dur = float(headers.get("X-Duration-Seconds") if headers.get("X-Duration-Seconds") else 0)
+
+                sensor_log[sensor_id][4] = exec_dur
+                sensor_log[sensor_id][5] = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
+                sensor_log[sensor_id][6] = round(sensor_log[sensor_id][5] - sensor_log[sensor_id][1], 3) 
+                sensor_log[sensor_id][7] = response_obj.status_code
+                
+                # [8] replies
+                sensor_log[sensor_id][8] = sensor_log[sensor_id][8] + 1
+                # increment received
+                c = [index for index, app in enumerate(apps) if app[4] == sensor_log[sensor_id][0]]
+                apps[c[0]][7] += 1
+                
+                # if repetitious
+                if sensor_log[sensor_id][8] > 1:
+                    logger.error('Actuator: a repetitious reply received: ' + str(sensor_log[sensor_id]))
+
         else:  # code=200
-            print('Actuator: Duration: ', str(request.headers.get('X-Duration-Seconds')))
+            # print('Actuator: Duration: ', str(headers.get('X-Duration-Seconds')))
 
-            response_time.append(float(request.headers.get('X-Duration-Seconds')))
-
+            response_time.append(float(headers.get('X-Duration-Seconds')))
             # [0] function_name already set
             # [1]created time already set
             # [2]admission duration already set
@@ -2657,7 +3269,7 @@ def owl_actuator():
             # sensor_log[get_id][2]= float(request.headers.get('X-Start-Time')) - sensor_log[get_id][0] - sensor_log[get_id][1]
             sensor_log[get_id][3] = None
             # [4] set execution duration=given by openfaas
-            sensor_log[get_id][4] = round(float(request.headers.get('X-Duration-Seconds')), 3)
+            sensor_log[get_id][4] = round(float(headers.get('X-Duration-Seconds')), 3)
             # [5] finished time=now
             now = datetime.datetime.now(datetime.timezone.utc).astimezone().timestamp()
             sensor_log[get_id][5] = now
@@ -2667,26 +3279,40 @@ def owl_actuator():
             sensor_log[get_id][3] = round(sensor_log[get_id][6] - sensor_log[get_id][2] - sensor_log[get_id][4], 3)
             if sensor_log[get_id][3] < 0: sensor_log[get_id][3] = 0
             # [7] status code
-            sensor_log[get_id][7] = int(request.headers.get('X-Function-Status'))
+            #in sync, openfaas does not return X-Function-Status
+            if response_obj == None:
+                sensor_log[get_id][7] = int(headers.get('X-Function-Status'))
+            else:#sync
+                sensor_log[get_id][7] = response_obj.status_code
             # [8] replies
             sensor_log[get_id][8] = sensor_log[get_id][8] + 1
             # increment received
             c = [index for index, app in enumerate(apps) if app[4] == sensor_log[get_id][0]]
             apps[c[0]][7] += 1
-
+            
             # if repetitious
             if sensor_log[get_id][8] > 1:
                 logger.error('Actuator: a repetitious reply received: ' + str(sensor_log[get_id]))
 
+            #executor_host_ip
+            sensor_log[get_id][9] = str(headers.get('X-POD-HOST-IP')) if headers.get('X-POD-HOST-IP') else "n/a"
+            #executor_pod_ip
+            sensor_log[get_id][10] = str(headers.get('X-POD-IP')) if headers.get('X-POD-IP') else "n/a"
+
             #detected objects
             try:
-                if request.json:
-                    if 'detected_objects' in request.json:
+                if response_obj == None:
+                    json_obj = request.json
+                else:#sync
+                    json_obj = response_obj.json()
+
+                if json_obj:
+                    if 'detected_objects' in json_obj:
                         #list of detected objects
-                        detected_objects_list = request.json['detected_objects']
+                        detected_objects_list = json_obj['detected_objects']
                         for item in detected_objects_list:
-                            sensor_log[get_id][9].append(item['object'])
-                            sensor_log[get_id][10].append(int(item['confidence']))
+                            sensor_log[get_id][11].append(item['object'])
+                            sensor_log[get_id][12].append(int(item['confidence']))
             except Exception as e:
                 logger.error("If doing object detection, callbacks sent to the actuator requires a body with this format\n request.json {'detected_objects': [{'object': 'person', 'confidence': 69}]}")
                 
@@ -3034,7 +3660,9 @@ def save_reports():
         finished_time = []
         response_time_suc = []
         response_time_suc_fail = []
-
+        #executors
+        executor_host_ips=[]
+        executor_pod_ips=[]
         #calculate detected objects
         detected_objects = []
         detected_objects_accuaracy = []
@@ -3063,7 +3691,7 @@ def save_reports():
         sensor_data = []
 
         labels = ['func_name', 'created_at', 'admission', 'queue', 'exec', 'finished_at',
-                  'round_trip', 'status', 'replies', 'objects', 'accuracy']
+                  'round_trip', 'status', 'replies', 'executor_host_ip', 'executor_pod_ip', 'objects', 'accuracy']
         sensor_data.append(labels)
 
         for sensor in sensor_log.values():  # consider failed ones ?????
@@ -3084,10 +3712,12 @@ def save_reports():
 
                     response_time_suc.append(sensor[6])
                     response_time_suc_fail.append(sensor[6])
-
+                    #executor
+                    executor_host_ips.append(sensor[9])
+                    executor_pod_ips.append(sensor[10])
                     #detections
-                    detected_objects.extend(sensor[9])
-                    detected_objects_accuaracy.extend(sensor[10])
+                    detected_objects.extend(sensor[11])
+                    detected_objects_accuaracy.extend(sensor[12])
 
                 else:
                     useless_execution_duration.append(sensor[4])
@@ -3128,7 +3758,8 @@ def save_reports():
             sensor_data.append([str(sensor[0]), str(sensor[1]), str(sensor[2]),
                                 str(sensor[3]), str(sensor[4]), str(sensor[5]),
                                 str(sensor[6]), str(sensor[7]), str(sensor[8]),
-                                ','.join(sensor[9]), ','.join(map(str,sensor[10]))])
+                                str(sensor[9]), str(sensor[10]),
+                                ','.join(sensor[11]), ','.join(map(str,sensor[12]))])
 
         # save sensor data
         log_index = log_path + "/" + node_name + "-sensors.csv"
@@ -3235,6 +3866,32 @@ def save_reports():
         logger.critical('OVERALL: Percentiles (success only): ' + str(percentiles_suc))
         logger.critical('OVERALL: Percentiles (success success + fail): ' + str(percentiles_suc_fail))
 
+        #executors
+        #host
+        #get a copy of all involved ips
+        different_host_ips=list(set(executor_host_ips))
+        #prepaer a counter associated to the ips in the obtained list
+        host_ip_counter=[0]*len(different_host_ips)
+        #search for the number of repetitions of each ip
+        for ip_index in range(len(different_host_ips)):
+            host_ip_counter[ip_index] = executor_host_ips.count(different_host_ips[ip_index])
+
+        #pod
+        #get a copy of all involved ips
+        different_pod_ips=list(set(executor_pod_ips))
+        #prepaer a counter associated to the ips in the obtained list
+        pod_ip_counter=[0]*len(different_pod_ips)
+        #search for the number of repetitions of each ip
+        for ip_index in range(len(different_pod_ips)):
+            pod_ip_counter[ip_index] = executor_pod_ips.count(different_pod_ips[ip_index])
+
+        #print
+        logger.critical('OVERALL: executor hosts\n' +
+            str([str(different_host_ips[ip_index]) + '=' + str(host_ip_counter[ip_index])  for ip_index in range(len(different_host_ips))]))
+            
+        logger.critical('OVERALL: executor pods\n' + 
+            str([str(different_pod_ips[ip_index]) + '=' + str(pod_ip_counter[ip_index]) for ip_index in range(len(different_pod_ips))]))
+
         #object detection
         detected_objects_sum = len(detected_objects)
         #assumed len detected_objects == len response_time_sec??
@@ -3310,6 +3967,8 @@ def save_reports():
                                                            "p99": percentiles_suc_fail[6],
                                                            "p99.9": percentiles_suc_fail[7],
                                                            "p100": percentiles_suc_fail[8]},
+                                    "executor_ips":{"hosts": {"ips": different_host_ips, "counter": host_ip_counter},
+                                                    "pods": {"ips": different_pod_ips, "counter": pod_ip_counter}},
                                     "detected_objects": {"sum": detected_objects_sum,
                                                         "avg": detected_objects_avg,
                                                         "accuracy_avg": detected_objects_accuaracy_avg},
@@ -3329,7 +3988,9 @@ def save_reports():
             finished_time = []
             response_time_suc = []
             response_time_suc_fail = []
-
+            #executor
+            executor_host_ips = []
+            executor_pod_ips = []
             #calculate detected objects
             detected_objects = []
             detected_objects_accuaracy = []
@@ -3360,10 +4021,12 @@ def save_reports():
                                 finished_time.append(sensor[5])
                                 response_time_suc.append(sensor[6])
                                 response_time_suc_fail.append(sensor[6])
-
+                                #executor
+                                executor_host_ips.append(sensor[9])
+                                executor_pod_ips.append(sensor[10])
                                 #detections
-                                detected_objects.extend(sensor[9])
-                                detected_objects_accuaracy.extend(sensor[10])
+                                detected_objects.extend(sensor[11])
+                                detected_objects_accuaracy.extend(sensor[12])
 
                             else:
                                 useless_execution_duration.append(sensor[4])
@@ -3471,12 +4134,38 @@ def save_reports():
                 logger.critical('APP(' + app[4] + '): Percentiles (success + fail): '
                                 + str(percentiles_suc_fail))
 
+                #executors
+                #host
+                #get a copy of all involved ips
+                different_host_ips=list(set(executor_host_ips))
+                #prepaer a counter associated to the ips in the obtained list
+                host_ip_counter=[0]*len(different_host_ips)
+                #search for the number of repetitions of each ip
+                for ip_index in range(len(different_host_ips)):
+                    host_ip_counter[ip_index] = executor_host_ips.count(different_host_ips[ip_index])
+
+                #pod
+                #get a copy of all involved ips
+                different_pod_ips=list(set(executor_pod_ips))
+                #prepaer a counter associated to the ips in the obtained list
+                pod_ip_counter=[0]*len(different_pod_ips)
+                #search for the number of repetitions of each ip
+                for ip_index in range(len(different_pod_ips)):
+                    pod_ip_counter[ip_index] = executor_pod_ips.count(different_pod_ips[ip_index])
+
+                #print
+                logger.critical('APP(' + app[4] + ') executor hosts\n' + 
+                    str([str(different_host_ips[ip_index]) + '=' + str(host_ip_counter[ip_index]) for ip_index in range(len(different_host_ips))]))
+                logger.critical('APP(' + app[4] + ') executor pods\n' + 
+                    str([str(different_pod_ips[ip_index]) + '=' + str(pod_ip_counter[ip_index]) for ip_index in range(len(different_pod_ips))]))
+
+                
                 #object detection
                 detected_objects_sum = len(detected_objects)
                 #assumed len detected_objects == len response_time_sec??
                 detected_objects_avg = round(len(detected_objects) / len(response_time_suc), 2) if len(response_time_suc) and len(detected_objects) else 0
                 detected_objects_accuaracy_avg = round(statistics.mean(detected_objects_accuaracy), 2) if len(detected_objects_accuaracy) else 0
-                logger.critical('OVERALL: avg. Obj. Detection (success only) ---> sum obj= ' + str(detected_objects_sum)
+                logger.critical('APP(' + app[4] + ') avg. Obj. Detection (success only) ---> sum obj= ' + str(detected_objects_sum)
                         + ',  avg= ' + str(detected_objects_avg) 
                         + ', accuracy= ' + str(detected_objects_accuaracy_avg))
                 # System Throughput (every 30sec)
@@ -3546,6 +4235,8 @@ def save_reports():
                                                               "p99": percentiles_suc_fail[6],
                                                               "p99.9": percentiles_suc_fail[7],
                                                               "p100": percentiles_suc_fail[8]},
+                                    "executor_ips":{"hosts": {"ips": different_host_ips, "counter": host_ip_counter},
+                                                    "pods": {"ips": different_pod_ips, "counter": pod_ip_counter}},
                                     "detected_objects": {"sum": detected_objects_sum,
                                                         "avg": detected_objects_avg,
                                                         "accuracy_avg": detected_objects_accuaracy_avg},
@@ -3596,9 +4287,11 @@ def save_reports():
         # down per scheduling iterations
         down_counter = {worker[0]: 0 for worker in workers}
         # per scheduling_round
-        for key, value in history["workers"].items():
-            scheudling_round = key
-            nodes = value
+        for nodes in history["workers"]:
+        #???
+        # for key, value in history["workers"].items():
+        #     scheudling_round = key
+        #     nodes = value
             # evaluate all nodes SoC one at a time
             for node in nodes:
                 soc = node[2]
@@ -3616,17 +4309,20 @@ def save_reports():
         logger.info(metrics["scheduler"])
 
         # save scheduler history to file
-        # as numpy array
-        # np.save(log_path + "/functions", history["functions"])
-        # np.save(log_path + "/workers", history["workers"])
-        # as json?????????
         with open(log_path + "/functions.txt", "w") as f:
-            json.dump(history["functions"], f, indent=2)
+            json.dump({"functions": history["functions"]}, f, indent=4, ensure_ascii=False, sort_keys=True)
         with open(log_path + "/workers.txt", "w") as w:
-            json.dump(history["workers"], w, indent=2)
+            json.dump({"workers": history["workers"]}, w, indent=4, ensure_ascii=False, sort_keys=True)
         # to read
         # functions = json.load(open(log_path + "/functions.txt", "r"))
         # workers = json.load(open(log_path + "/workers.txt", "r"))
+
+        #load_balancer report
+        
+        #save history as json
+        with open(log_path + "/history.txt", "w") as f:
+            json.dump(history, f, indent=4, ensure_ascii=False, sort_keys=True)
+
     # else any role
 
     log_index = log_path + "/" + node_name + "-monitor.csv"
@@ -3714,7 +4410,7 @@ def save_reports():
                 curr_list.append(str(power_usage[i][4]))
                 curr_list.append(str(power_usage[i][5]))
             else:
-                logger.warning('save_reports: power_usage shorter than cpu_usage')
+                logger.warning('save_reports: power_usage shorter than cpuUtil')
                 curr_list.append(str(mwh_sum))
 
                 curr_list.append(str(power_usage[i - 1][0]))
@@ -3849,7 +4545,7 @@ def save_reports():
 
 def metrics_sender(metrics):
     global logger
-    global gateway_IP
+    global load_balancing
     global node_name
     logger.info('metrics_sender: start')
     while True:
@@ -3858,8 +4554,10 @@ def metrics_sender(metrics):
             # time.sleep(random.randint(1,3))
             # specific to node name w1 w2 .... ????
             time.sleep(int(node_name.split('w')[1]) * 3)
+
+            admin_ip = load_balancing['admin']['ip']
             sender = node_name
-            response = requests.post('http://' + gateway_IP + ':5000/main_handler/metrics/' + sender, json=metrics)
+            response = requests.post('http://' + admin_ip + ':5000/main_handler/metrics/' + sender, json=metrics)
         except Exception as e:
             logger.error('metrics_sender: exception:' + str(e))
         # if no exception
@@ -3902,9 +4600,9 @@ def main_handler(cmd, sender, plan={}):
 
         # reset times, battery_cfg(current SoC), apps (created/recv), monitor, free up resources,
         reset()
-
-        if node_role == "MASTER":
-            openfaas_clean_up()
+        print('111111111111111111111\n11111111111111\n111111111111\n11111111111\n11111111111\n node_role' + str(node_role))
+        if node_role == "MASTER" or (not node_role and sender == 'INTERNAL'):
+            network_openfaas_clean_up()
 
         # plan
         # set plan for LOAD_GENERATOR, MONITOR, STANDALONE by master node
@@ -4114,9 +4812,11 @@ def main_handler(cmd, sender, plan={}):
             epoch += 1
 
             if epoch < len(setup.test_name):
-                logger.info('Try another test ...')
+                logger.info('Sleep for another test ...')
                 # clean up
-                openfaas_clean_up()
+                #avoid end of test clean up to allow remained workers to use functions while master is sleeping for next test.
+                #Instead, at the start of each test, master runs network_openfaas_clean_up()
+                # network_openfaas_clean_up()
 
                 # cooldown
                 cooldown(setup.intra_test_cooldown)
@@ -4129,13 +4829,36 @@ def main_handler(cmd, sender, plan={}):
                 thread_launcher.name = "launcher"
                 thread_launcher.start()
 
-    # 'charge'
-    elif cmd == "charge":
-        logger.info("main_handler:charge: req. from " + str(sender) + ": start")
-        logger.info("main_handler:charge: return to "
-                    + str(sender) + ": " + str(round(battery_cfg[3], 2)) + " mwh")
-        return str(battery_cfg[3])
-        logger.info("main_handler:charge: sender:" + str(sender) + ": stop")
+    # 'pull'
+    elif cmd == "pull":
+        logger.info("main_handler:cmd=pull: sender=" + str(sender) + ": start")
+        if not request.json:
+            logger.error('request.json is not provided')
+            return None
+        else:    
+            template = request.json
+
+        #get data
+        if 'cpuUtil' in request.json:
+            global cpuUtil
+            template['cpuUtil'] = cpuUtil[-1] if cpuUtil else psutil.cpu_percent()
+            
+
+        if 'charge' in request.json:
+            template['charge'] = round(battery_cfg[3], 2)
+
+        logger.info("main_handler: response return to "
+                    + str(sender) + ": " + str(template))
+
+
+        response = make_response(json.dumps(template), 200)
+        response.mimetype = "application/json"
+        response.headers['Content-Type'] = 'application/json'
+        response.headers['template'] = template
+
+        return response
+        # return jsonify(template)
+        # logger.info("main_handler: cmd=pull: sender=" + str(sender) + ": done")
     else:
         logger.error('main_handler: unknown cmd')
         return 'failed'
@@ -4144,37 +4867,63 @@ def main_handler(cmd, sender, plan={}):
 
 
 # clean up is used at the start and end of experiments
-def openfaas_clean_up():
+def network_openfaas_clean_up():
     # clean up
     global logger
     logger.info('clean_up: start')
     try:
-        
+        print('#################################################################################################################')
+        #restart network interfaces
+        cmd = "sudo ifdown --exclude=lo -a -v && sudo ifup --exclude=lo -a -v"
+        logger.info('restart network interfaces: ' + cmd)
+        out, error = utils.shell(cmd)
+        logger.info(out + error)
+
+        #restart network manager
+        cmd = "sudo systemctl restart NetworkManager.service"
+        logger.info('restart network manager: ' + cmd)
+        out, error = utils.shell(cmd)
+        logger.info(out + error)
+
+        #restart k3s.service
+        cmd = "sudo systemctl restart k3s.service"
+        logger.info('restart k3s.service: ' + cmd)
+        out, error = utils.shell(cmd)
+        logger.info(out + error)
+
+        #redeploy kube-system
+        '''
+        cmd = "kubectl -n kube-system rollout restart deploy"
+        logger.info('redeploy kube-system: ' + cmd)
+        out, error = utils.shell(cmd)
+        logger.info(out + error)'''
+
         #delete hpa objects
         cmd = "kubectl delete hpa --all -n openfaas-fn"
         logger.info('clean up hpa objects: ' + cmd)
         out, error = utils.shell(cmd)
-        print(out + error)
+        logger.info(out + error)
         
         #delete profile objects. profiles are created in openfaas namespace, not openfaas-fn
         cmd = "kubectl delete profile --all -n openfaas"
         logger.info('clean up profile objects: ' + cmd)
         out, error = utils.shell(cmd)
-        print(out + error)
+        logger.info(out + error)
         
         #delete functions or set their replicas to 1????? to avoid leftover functions with extra replicas for the next test
-        
+        #now, scheduler deletes the function in the first scheduling round and then again creates it
+
         #delete helm chart
         cmd = "helm delete " + setup.function_chart[0]
         logger.info('clean up function chart: ' + cmd)
         out, error = utils.shell(cmd)
-        print(out + error)
+        logger.info(out + error)
 
         #restart nats
         cmd = "kubectl rollout restart -n openfaas deployment/nats"
         logger.info('clean up nats chart: ' + cmd)
         out, error = utils.shell(cmd)
-        print(out + error)
+        logger.info(out + error)
 
         #restart queue-worker ????? should get name of queues from a reliable variable
         if setup.multiple_queue:
@@ -4224,7 +4973,9 @@ def openfaas_clean_up():
     except Exception as e:
         logger.error('clean_up:\n' + str(e))
 
-    logger.info('clean_up: done')
+    logger.info('network_openfaas_clean_up: sleep 5 sec')
+    time.sleep(5)
+    logger.info('network_openfaas_clean_up: done')
 
 
 # cooldown
@@ -4237,7 +4988,7 @@ def cooldown(intra_test_cooldown=0):
     global apps
     global cpuFreq
     global logger
-    logger.info('cooldown:start')
+    logger.info('cooldown: start')
     wait = 0
 
     if node_role == "MONITOR" or node_role == "MASTER":
@@ -4280,9 +5031,7 @@ def show_plan():
     global test_name
     global node_name
     global debug
-    global gateway_IP
-    global openfaas_gateway_port
-    global routes
+    global load_balancing
     global bluetooth_addr
     global apps
     global battery_cfg
@@ -4318,9 +5067,7 @@ def show_plan():
                  + " node_name: " + str(socket.gethostname()) + " / " + str(node_name)
                  + "\n IP: " + node_IP
                  + "\n node_role: " + node_role
-                 + "\n gateway_IP: " + gateway_IP
-                 + "\nopenfaas_gateway_port: " + openfaas_gateway_port
-                 + "\nroutes: " + str(routes)
+                 + "\n load_balancing: " + str(load_balancing)
                  + "\n Debug: " + str(debug)
                  + "\n bluetooth_addr: " + bluetooth_addr
                  + "\n apps: " + '\n'.join([str(app) for app in apps])
@@ -4332,7 +5079,7 @@ def show_plan():
                  + "\n monitor_interval: " + str(monitor_interval)
                  + "\n failure_handler_interval: " + str(failure_handler_interval)
                  + "\n scheduling_interval: " + str(
-                [setup.scheduling_interval[epoch] if node_role == 'MASTER' or node_role == 'STANDALONE' else 'null'][0])
+                [setup.scheduling_interval[epoch if 'scheduling_interval' in setup.variable_parameters else 0] if node_role == 'MASTER' or node_role == 'STANDALONE' else 'null'][0])
                  + "\n max_request_timeout: " + str(max_request_timeout)
                  + "\n min_request_generation_interval: " + str(min_request_generation_interval)
                  + "\n sensor_admission_timeout: " + str(sensor_admission_timeout)
@@ -4357,9 +5104,7 @@ def show_plan():
 def apply_plan(plan):
     global test_name
     global debug
-    global gateway_IP
-    global openfaas_gateway_port
-    global routes
+    global load_balancing
     global bluetooth_addr
     global apps
     global battery_cfg
@@ -4378,17 +5123,36 @@ def apply_plan(plan):
     global max_cpu_capacity
     global log_path
     global pics_folder
+    global pics_num
     global file_storage_folder
     global boot_up_delay
     global raspbian_upgrade_error
+    global node_IP
+
     logger.info('apply_plan: start')
     # create test_name
     test_name = socket.gethostname() + "_" + plan["test_name"]
 
     node_role = plan["node_role"]
-    gateway_IP = plan["gateway_IP"]
-    openfaas_gateway_port = plan["openfaas_gateway_port"]
-    routes = plan['routes']
+    load_balancing = plan["load_balancing"]
+    #run tinyobj.py if required and is not running
+    #decoupled
+    if 'read' in load_balancing['object_storage'] and load_balancing['object_storage']['read']['decoupled'] == True:
+        #decentralized-tinyobj or centralized-tinyobj on this node
+        if load_balancing['object_storage']['read']['type'] == 'decentralized-tinyobj' or (load_balancing['object_storage']['read']['type'] == 'centralized-tinyobj'
+                        and load_balancing['object_storage']['read']['ip'] == node_IP):
+            #run tinyobj.py if not running
+            logger.info('pgrep -af python')
+            out, err = utils.shell('pgrep -af python')
+            if err:
+                logger.error('pgrep ' + str(err))
+
+            if 'tinyobj.py' not in out:
+                logger.info('python3 tinyobj.py')
+                out, err = utils.shell('python3 tinyobj.py &')
+                if err:
+                    logger.error('tinyobj.py & ' + str(err))
+
     debug = plan["debug"]
     bluetooth_addr = plan["bluetooth_addr"]
     apps = plan["apps"]
@@ -4450,6 +5214,8 @@ def apply_plan(plan):
     if not os.path.exists(pics_folder):
         logger.error('apply_plan: no pics_folder directory found at ' + pics_folder)
         return False
+    pics_num = plan["pics_num"]
+    
     file_storage_folder = home + plan["file_storage_folder"]
     if not os.path.exists(file_storage_folder): os.makedirs(file_storage_folder)
 
@@ -4724,12 +5490,11 @@ def reset():
     global test_name
     global metrics
     global under_test
-    global gateway_IP
-    global openfaas_gateway_port
-    global routes
+    global load_balancing
     global test_started
     global test_finished
     global sensor_log
+    global erro_collector
     global battery_cfg
     global workers
     global functions
@@ -4789,6 +5554,12 @@ def reset():
     #To safety unmount USB device so it does not appear in lsusb results (despite the device being physically detached), run sudo apt install eject; sudo eject /dev/name_of_device_found_in_previous_cmd
     #watch USB power management  by "lsusb -v|grep -i power"
     #Linux USB power management https://www.kernel.org/doc/Documentation/usb/power-management.txt
+
+    #get usb devices directory for a specific product:vendor id. Ref: https://github.com/movidius/ncsdk/blob/ncsdk2/extras/docker/docker_cmd.sh
+    #all_devices=$(lsusb -d 03e7:f63b  | cut -d" " -f2,4 | cut -d":" -f1 |  sed 's/ /\//' | sed 's/^/\/dev\/bus\/usb\//')
+    #devices_number=$(lsusb -d 03e7:f63b  | wc -l)
+    #--device=$dev
+    
     if utils.what_device_is_it('raspberry pi 3'):
         logger.info('temporarily turn USB hubs (and Ethernet port) on for accelerators detection')
         
@@ -4802,6 +5573,7 @@ def reset():
 
         #wait a sec
         time.sleep(1)
+        logger.warning('USB turn on/off on Pi 3 may not always function!')
 
         #Note: For the Raspberry Pi 3 and 4 the power on all USB ports is ganged together through port 2, so unfortunately it is not possible to power up/down an individual USB port. Ref: https://funprojects.blog/2021/04/26/control-usb-powered-devices/
         #turn on USBs if an accelerator device like TPU is detected.
@@ -4947,13 +5719,12 @@ def reset():
     test_name = "no_name"
     metrics = {}
     under_test = False
-    gateway_IP = ""
-    openfaas_gateway_port = ""
-    routes = {}
+    load_balancing = {}
     test_started = None
     test_finished = None
     down_time = 0
     sensor_log = {}
+    erro_collector = []
     home = expanduser("~")
     log_path = home + "/" + test_name
 
@@ -4963,7 +5734,7 @@ def reset():
     # scheudler
     workers = []
     functions = []
-    history = {'functions': {}, 'workers': {}}
+    history = {'functions': [], 'workers': [], 'load_balancer': [], 'scheduler': [], 'autoscaler': []}
     suspended_replies = []
     boot_up_delay = 0
     # monitoring parameters
@@ -4996,8 +5767,9 @@ def reset():
 
     logger.info('reset:stop')
 
-
-
+@app.route('/test', methods=['GET', 'POST'])
+def test():
+    return 'Test success\n'
 
 
 if __name__ == "__main__":
@@ -5046,6 +5818,6 @@ if __name__ == "__main__":
     try:
         # threads=number of requests can work concurrently in waitress; exceeded requests wait for a free thread
         serve(app, host='0.0.0.0', port='5000', threads=waitress_threads)
+        
     except OSError as e:
         print(str(e) + '\nMake sure this port is not already given to someone else, e.g., docker ps -a.')
-

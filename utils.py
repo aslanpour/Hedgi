@@ -73,7 +73,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 if os.path.exists(dir_path + "/pykubectl.py"): import pykubectl
 
 #patch a function
-def openfaas_function_customizations(function_name, namespace='openfaas-fn', operation='get-json', patch_type='application/merge-patch+json'):
+def openfaas_function_customizations(function_name, function_worker_name, accelerators, namespace='openfaas-fn', operation='get-json', patch_type='application/merge-patch+json'):
     results = None; msg = ""; error=""
 
     #get Deployment of the function as json
@@ -89,8 +89,14 @@ def openfaas_function_customizations(function_name, namespace='openfaas-fn', ope
     }
 
     #get
-    deployment_dict, msg, error = pykubectl.apply(**patch_info)
-
+    try:
+        deployment_dict, msg, error = pykubectl.apply(**patch_info)
+        if error:
+            print(error)
+            
+    except Exception as e:
+        print('utils pykubectl,.apply\n' + str(e))
+        error += '\n' + str(e)
     #get main container (in case multi-container is enables using like service mesh side car)
     index=-1
     for container in deployment_dict['spec']['template']['spec']['containers']:
@@ -149,9 +155,26 @@ def openfaas_function_customizations(function_name, namespace='openfaas-fn', ope
           value: 15s'''
 
     deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'MODEL_PRE_LOAD', 'value': 'yes', 'value_from': None})
-    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'MODEL_RUN_ON', 'value': 'tpu', 'value_from': None})
-    # deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'MODEL_CPU_WORKERS', 'value': '1', 'value_from': None})
-    # deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'WAITRESS_THREADS', 'value': '4', 'value_from': None})
+    #???these are not configurable from setup.py
+    model_run_on = 'cpu'
+    model_cpu_workers = 4
+    flask_waitress_threads = 4
+    if function_worker_name in accelerators: 
+        if 'tpu' in accelerators[function_worker_name]:
+            model_run_on = 'tpu'
+            model_cpu_workers = 1
+            flask_waitress_threads = 1
+        elif 'gpu' in accelerators[function_worker_name]:
+            model_run_on = 'gpu'
+            model_cpu_workers = 1
+            flask_waitress_threads = 4
+    else:
+        print('ERROR: ' + function_worker_name + ' not found in accelerator= ' + str(accelerators))
+        
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'MODEL_RUN_ON', 'value': model_run_on, 'value_from': None})
+    #???
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'MODEL_CPU_WORKERS', 'value': str(model_cpu_workers), 'value_from': None})
+    deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'WAITRESS_THREADS', 'value': str(flask_waitress_threads), 'value_from': None})
 
     deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'NODE_NAME', 'value': None, 'valueFrom': {'fieldRef': {'apiVersion': 'v1', 'fieldPath': 'spec.nodeName'}}})
     deployment_dict['spec']['template']['spec']['containers'][index]['env'].append({'name': 'POD_NAME', 'value': None, 'valueFrom': {'fieldRef': {'apiVersion': 'v1', 'fieldPath': 'metadata.name'}}})

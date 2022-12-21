@@ -19,18 +19,26 @@ import datetime
 #optional arguments:
 #namespace="default", operation= "safe_replace", patch_type= "application/merge-patch+json", 
 
-#returns object
-
+#gets a resource as dict and returns object
+import threading
+lock = threading.Lock()
 def apply(**kwargs):
+    with lock:
+        object_input = kwargs
+        res, msg, err = run(**object_input)
+        return res, msg, err
+        
+def run(**kwargs):
+    # with lock:
     #start
     error = ""; msg = ""; results = None
     msg += 'Kubectl apply started \nInput:' + ("\n**kwargs= " + str({k:v for k,v in kwargs.items()}) if len(kwargs)>0 else "")
     #check input requirements
     if 'api_version' not in kwargs or 'kind' not in kwargs or 'object_name' not in kwargs:
-        error += '\nBasig input is not given, i.e., api_version, kind, or object_name'
+        error += '\nBasic input is not given, i.e., api_version, kind, or object_name'
         return results, msg, error
     #manifest sometimes is required, i.e., for replace, create or  patch operations.
-    if 'replace' in kwargs['operation'] or 'create' in kwargs['operation'] or 'patch' in kwargs['operation']:
+    if 'operation' in kwargs and ('replace' in kwargs['operation'] or 'create' in kwargs['operation'] or 'patch' in kwargs['operation']):
         if 'manifest' not in kwargs or kwargs['manifest'] == {}:
             error += '\nManifest is not given, but is required.'
             return results, msg, error
@@ -65,7 +73,7 @@ def apply(**kwargs):
     #operation
     #If the operation is 'replace/patch', verify if the object exists; otherwise a 'create' will be requested automatically if a safe operation is requested.
     object_already_exists = False
-    if 'replace' in operation or 'patch' in operation or 'get' in operation:
+    if 'replace' in operation or 'patch' in operation or 'get' in operation or 'safe-delete' in operation:
         #for get operations only
         found_object = None
         #get all objects
@@ -89,13 +97,13 @@ def apply(**kwargs):
             msg += "\nObject " + kwargs['object_name'] + " does NOT exists."
             #get operation
             if 'get' in operation:
-                error += '\nObject not found'
+                # error += '\nObject not found'
                 return results, msg, error
         #only for get operation
         else:
             if 'get' in operation:
                 if found_object == None:
-                    error += '\nfound_object == None'
+                    msg += '\nfound_object == None'
                 elif 'json' in operation:
                     found_object = found_object.to_dict()
                 return found_object, msg, error
@@ -149,12 +157,15 @@ def apply(**kwargs):
         except Exception as e:
             error += '\napi_resources.create ' + str(e)
     #delete
-    elif 'delete' in operation:
-        msg += "\nA delete operation is taken."
-        try:
-            results = api_resources.delete(name=kwargs['object_name'], body={}, namespace=namespace)
-        except Exception as e:
-            error += '\n api_resources.delete' + str(e)
+    elif 'delete' in operation or 'safe-delete' in operation:
+        if 'safe-delete' in operation and not object_already_exists:
+            msg += '\nObject did not exist, so the deletion is safely ignored'
+        else: 
+            msg += "\nA delete operation is taken."
+            try:
+                results = api_resources.delete(name=kwargs['object_name'], body={}, namespace=namespace)
+            except Exception as e:
+                error += '\n api_resources.delete' + str(e)
     #unknown
     else:
         error += "\nOperation =" + operation + " is not known"

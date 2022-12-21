@@ -2,84 +2,210 @@ import getpass
 #first run main.py on PEERs
 
 #epoch driver
-test_name = ['test']
+#'throughput-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10'
+#'ai-cnfidence-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10'
+#'qos-rt-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10'
+#'energy-total-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10'
+#'even-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10'
+#'energy-processing-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10'
+#'local-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10',
+#'cost-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10',
+#'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10',
+#'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10',
+#'data-remote-local-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner4',
+#'data-locality-qos-rt-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner4',
 
+# test_name = ['cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner4',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner4','cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner4',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner5',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner5', 'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner5',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner5','cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner5',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner6',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner6', 'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner6',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner6','cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner6',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner7',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner7', 'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner7',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner7','cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner7',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner8',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner8', 'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner8',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner8','cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner8',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner9',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner9', 'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner9',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner9','cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner9',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner10',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner10', 'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner10',
+#     'cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner10','cpu-freq-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10',]
+
+test_name = ['ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner1',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner1', 'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner1',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner1','ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner1',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner2',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner2', 'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner2',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner2','ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner2',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner3',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner3', 'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner3',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner3','ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner3',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner4',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner4', 'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner4',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner4','ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner4',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner5',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner5', 'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner5',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner5','ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner5',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner6',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner6', 'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner6',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner6','ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner6',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner7',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner7', 'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner7',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner7','ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner7',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner8',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner8', 'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner8',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner8','ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner8',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner9',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner9', 'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner9',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner9','ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner9',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round1-spawner10',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round2-spawner10', 'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round3-spawner10',
+    'ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round4-spawner10','ai-precision-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round5-spawner10',]
+
+test_name = ['even-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round6-spawner8',
+'even-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round7-spawner8',
+'even-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round8-spawner8',
+'even-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round9-spawner8',
+'even-10min-minio-gen-40mbits-pics-83num-resized-half-6mb-max130kb-round10-spawner8',]
+
+
+
+variable_parameters=['workload_cfg']
 test_duration= 10 * 60 #####
 #[0] position (e.g.,COORDINATOR, PEER, or -) [1] node (host) name [2] node ip
 #for scheduling, max 5 nodes are considered.
 nodes=[["COORDINATOR","master","10.0.0.90"],
        ["www", "w1","10.0.0.91"],
-       ["www", "w2","10.0.0.92"],
-       ["www", "w3","10.0.0.93"],
-       ["www", "w4","10.0.0.94"],
-       ["www", "w5","10.0.0.95"],
+       ["PEER", "w2","10.0.0.92"],
+       ["PEER", "w3","10.0.0.93"],
+       ["PEER", "w4","10.0.0.94"],
+       ["PEER", "w5","10.0.0.95"],
        ["www", "w6","10.0.0.96"],
        ["PEER", "w7","10.0.0.97"],]
 
-accelerators = {'w1': [], 'w2': [], 'w3': [], 'w4': [], 'w5': ['gpu', 'tpu'], 'w6': [], 'w7': []}
+accelerators = {'w1': [], 'w2': [], 'w3': [], 'w4': ['tpu'], 'w5': ['gpu'], 'w6': [], 'w7': []}
 
 #load balancing
-gateway_function = {
-    'api_version': 'openfaas.com/v1',
-    'kind': 'Function', 
-    'object_name': 'gw-func',
-    'namespace': 'openfaas-fn',
-    'image': 'aslanpour/ssd:cpu-tpu-amd64',
-    'labels': {'com.openfaas.scale.min': '1',
-                'com.openfaas.scale.max': '1'},
-    'annotations': {'linkerd.io/inject': 'enabled'},
-    'constraints': ['kubernetes.io/hostname=master']}
-#'image': 'ghcr.io/openfaas/nodeinfo:latest'
 
-#backends ???only for ssd apps
-backends = [{'service': node[1] + '-' + 'ssd', 'weight': 1000} for node in nodes if node[0] == 'PEER']
-# backends = [{'service':'w4-ssd','weight': 1000}, {'service':'w5-ssd','weight': 1000}]
-#note: service_mesh paramter must be True. backends must contain nodes that are part of the test. Backends service name must be equal to functions name.
-load_balancing = [
-    {'type': 'trafficsplit',
-    'interval': 60,
-    'algorithm': 'even',
-    'accelerators': accelerators, 
-    'backends': backends,
-    'api_version': 'split.smi-spec.io/v1alpha2',
-    'kind': 'TrafficSplit', 
-    'object_name': 'my-traffic-split',
-    'namespace': 'openfaas-fn',
-    'service': gateway_function['object_name'],
-    'operation': 'safe-patch',
-    'gateway_function': gateway_function}
-]
+#if linkerd
+# backends = [{'service': node[1] + '-' + 'ssd', 'weight': 1000} for node in nodes if node[0] == 'PEER']
+#if envoy
+#even
+backends = [{'service':'w2-ssd','weight': 200, 'ip': '', 'port': ''}, {'service':'w3-ssd','weight': 200, 'ip': '', 'port': ''},
+             {'service':'w4-ssd','weight': 200, 'ip': '', 'port': ''},  {'service':'w5-ssd','weight': 200, 'ip': '', 'port': ''}, 
+             {'service':'w7-ssd','weight': 200, 'ip': '', 'port': ''}]
+# #static energy-totall
+# backends = [{'service':'w2-ssd','weight': 192, 'ip': '', 'port': ''}, {'service':'w3-ssd','weight': 186, 'ip': '', 'port': ''},
+#              {'service':'w4-ssd','weight': 130, 'ip': '', 'port': ''},  {'service':'w5-ssd','weight': 219, 'ip': '', 'port': ''}, 
+#              {'service':'w7-ssd','weight': 273, 'ip': '', 'port': ''}]
+#static cpu * frequency
+# backends = [{'service':'w2-ssd','weight': 206, 'ip': '', 'port': ''}, {'service':'w3-ssd','weight': 200, 'ip': '', 'port': ''},
+#              {'service':'w4-ssd','weight': 375, 'ip': '', 'port': ''},  {'service':'w5-ssd','weight': 102, 'ip': '', 'port': ''}, 
+#              {'service':'w7-ssd','weight': 118, 'ip': '', 'port': ''}]
+#static AI confidence
+# backends = [{'service':'w2-ssd','weight': 193, 'ip': '', 'port': ''}, {'service':'w3-ssd','weight': 193, 'ip': '', 'port': ''},
+#              {'service':'w4-ssd','weight': 188, 'ip': '', 'port': ''},  {'service':'w5-ssd','weight': 233, 'ip': '', 'port': ''}, 
+#              {'service':'w7-ssd','weight': 193, 'ip': '', 'port': ''}]
+#static QoS response time (exec time or tail latency?)
+# backends = [{'service':'w2-ssd','weight': 170, 'ip': '', 'port': ''}, {'service':'w3-ssd','weight': 213, 'ip': '', 'port': ''},
+#              {'service':'w4-ssd','weight': 378, 'ip': '', 'port': ''},  {'service':'w5-ssd','weight': 128, 'ip': '', 'port': ''}, 
+#              {'service':'w7-ssd','weight': 111, 'ip': '', 'port': ''}]
+#static throughput
+# backends = [{'service':'w2-ssd','weight': 245, 'ip': '', 'port': ''}, {'service':'w3-ssd','weight': 273, 'ip': '', 'port': ''},
+#              {'service':'w4-ssd','weight': 265, 'ip': '', 'port': ''},  {'service':'w5-ssd','weight': 100, 'ip': '', 'port': ''}, 
+#              {'service':'w7-ssd','weight': 117, 'ip': '', 'port': ''}]
+#static energy-processing
+# backends = [{'service':'w2-ssd','weight': 200, 'ip': '', 'port': ''}, {'service':'w3-ssd','weight': 124, 'ip': '', 'port': ''},
+#              {'service':'w4-ssd','weight': 499, 'ip': '', 'port': ''},  {'service':'w5-ssd','weight': 93, 'ip': '', 'port': ''}, 
+#              {'service':'w7-ssd','weight': 85, 'ip': '', 'port': ''}]
 
-#NOTE if True, queues must be already created! and follows the name pattern as queue-worker-functionName
+#cost
+# backends = [{'service':'w2-ssd','weight': 200, 'ip': '', 'port': ''}, {'service':'w3-ssd','weight': 212, 'ip': '', 'port': ''},
+#              {'service':'w4-ssd','weight': 355, 'ip': '', 'port': ''},  {'service':'w5-ssd','weight': 82, 'ip': '', 'port': ''}, 
+#              {'service':'w7-ssd','weight': 151, 'ip': '', 'port': ''}]
+
+#ai-precision
+# backends = [{'service':'w2-ssd','weight': 202, 'ip': '', 'port': ''}, {'service':'w3-ssd','weight': 202, 'ip': '', 'port': ''},
+#              {'service':'w4-ssd','weight': 136, 'ip': '', 'port': ''},  {'service':'w5-ssd','weight': 258, 'ip': '', 'port': ''}, 
+#              {'service':'w7-ssd','weight': 202, 'ip': '', 'port': ''}]
+
+#For type, 'handler' = openfaas-gateway, linkerd or envoy.
+#For type, if 'handler'=linkerd, service_mesh paramter must be True.
+#For type['control-plane], vlue can be centralized, distributed or decentralized.
+#For algorithm, if ['type']['handler'] == 'linkerd, then algorithm = even or static
+#For algorithm, if ['type']['handler'] == 'envoy, algorithm = local or (even or static). If local, postfix = 'func_name' else postfix = ''
+#For frontend if envoy, if 'static' , 'frontends': [{'type': 'static', 'listeners': {'name': 'envoy', 'ip': '10.43.10.10', 'address': '0.0.0.0', 'port': 9000, 'route_by': 'path', 'match': {'prefix': '/'}, 'path': '/', 'postfix': '', 'cluster': 'cluster1', 'redis_server_ip': '10.43.189.161'}}],
+#For frontends, if openfaas-gateway, 'frontends': [{'type': 'static', 'listeners': {'name': 'openfaas-gateway', 'ip': '10.0.0.90', 'port': '31112', 'path': '/async-function/', 'postfix': 'func_name', 'redis_server_ip': '10.43.189.161'},},],
+#For frontends, if name == openfaas-gateway, path can be '/function/' or  '/async-function/' for sync and async
+#For frontends, if type 'dynamic', listeners['ip'] must be measured on runtime to be given to workload_generator
+#For object_storage 1,  default --> {'read':{'decoupled': False, 'type':'anything', 'ip': 'anything', 'port': 5000}},
+#For object_storage 2,  decoupled local-generator --> {'read':{'decoupled': True, 'type':'decentralized-tinyobj', 'ip': 'local-generator', 'port': 5500}},
+#For object_storage 2,  decoupled local-executor --> {'read':{'decoupled': True, 'type':'decentralized-tinyobj', 'ip': 'local-executor', 'port': 5500}},
+#For object_storage 3, decoupled centralized --> {'read':{'decoupled': True, 'type':'centralized-tinyobj', 'ip': '10.0.0.91', 'port': 5500}},
+#For object_storage, minio centralized --> {'read': {'decoupled': True, 'type':'centralized-minio', 'ip': '10.0.0.96', 'port': 9000, 'resource': '/', 'bucket': 'mybucket', 's3_key': 'minioadmin', 's3_secret': 'minioadmin', 'content_type': 'application/octet-stream',}},
+#For object_storage, minio decentralized -->  'object_storage': {'read': {'decoupled': True, 'type':'decentralized-minio', 'ip': 'local-generator', 'port': 9000, 'resource': '/', 'bucket': 'mybucket130k', 's3_key': 'minioadmin', 's3_secret': 'minioadmin', 'content_type': 'application/octet-stream',}},
+#For object_storage, minio --> wget https://dl.minio.io/server/minio/release/linux-arm/minio
+#wget https://dl.minio.io/client/mc/release/linux-arm/mc
+#sudo ln -s /home/ubuntu/minio /usr/bin/minio
+#sudo ln -s /home/ubuntu/mc /usr/bin/mc
+#wget https://dl.min.io/server/minio/release/linux-arm64/minio & chmod +x minio & mkdir -p /data & minio server /home/ubuntu/data &
+#open dashboard 10.0.0.91:9000, create bucket 'mybucket', set public access to bucket
+#populate mybucket using minio-put.py
+#For object_storage, if port different than main flask, a tineobj.py my be ran on hosts listening on the port.
+#For add_headers, {'Use-Local-Image': '0-170'}, or {'Internal-Connection': 'close'}, or {'Internal-Session': 'anything'},
+#Do not use object_storage read with add_headers['Use-Local-Image'] 
+#For backend_discovery, value = static (use 'backends') or dynamic.
+#For backend_discovery, if type['handler'] == linkerd, then 'type' = 'static' and deployments['backends']['TrafficSplit'] and ['Function'] name must be equal.
+#For 'deploy', if ['type']['handler'] == envoy and ['type']['deployment'] == kubernetes, then 'deploy'= ['Deployment-envoy', 'Service-envoy',] and Requires envoy.yaml file address. 
+#For 'deployments'['Deployment-envoy'] if 'nodeName' != master and ARM, envoy image will fail and isntead use image: thegrandpkizzle/envoy:1.24.0 but for AMD value of 'host_user_ip' is like 'ubuntu@10.0.0.91'
+#For 'deploy', if ['type']['handler'] == linkerd  and ['type']['deployment'] == kubernetes, then 'deploy'= ['Function-function']. 
+
+load_balancing ={
+        'type': {'adaptive': False, 'control-plane': 'centralized', 'handler': 'envoy', 'deployment': 'kubernetes'}, 
+        'interval': 800,
+        'algorithm': 'static',
+        'accelerators': accelerators,
+        'admin':{'name': 'admin', 'ip': '10.0.0.90', 'port': 8000,},
+        'frontends': [{'type': 'static', 'listeners': {'name': 'envoy', 'ip': '10.43.10.10', 'address': '0.0.0.0', 'port': 9000, 
+                                                    'route_by': 'path', 'match': {'prefix': '/'}, 'path': '/', 'postfix': '', 'cluster': 'cluster1', 'redis_server_ip': '10.43.189.161'}}],
+        'object_storage': {'read': {'decoupled': True, 'type':'decentralized-minio', 'ip': 'local-generator', 'port': 9000, 'resource': '/', 'bucket': 'mybucket130k', 's3_key': 'minioadmin', 's3_secret': 'minioadmin', 'content_type': 'application/octet-stream',}},
+        'add_headers':{},
+        'backend_discovery': {'type': 'static', 'backends': backends},
+        'deploy': ['Deployment'],
+        'deployments': {
+            'Deployment-envoy': 
+                {'api_version': 'apps/v1', 'kind': 'Deployment', 'object_name': 'envoy', 'namespace': 'openfaas-fn', 
+                'image': 'envoyproxy/envoy:v1.24.0', 'nodeName': 'master', 'host_user_ip': 'ubuntu@10.0.0.91', 'annotations': {'version': '1'}, 'ports': [{'containerPort': 9000}], 
+                'volumeMounts': [{'name': 'envoy-config', 'mountPath': '/etc/envoy/envoy.yaml'},],
+                'volumes': [{'name': 'envoy-config', 'hostPath': {'path': '/home/ubuntu/envoy.yaml'}},], 'manifest': {}, 'envoy-config': {}},
+            'Service-envoy':
+                {'api_version': 'v1', 'kind': 'Service', 'object_name': 'envoy', 'namespace': 'openfaas-fn', 'clusterIP': '10.43.10.10',
+                'ports': [{'protocol': 'TCP', 'port': 9000, 'targetPort': 9000}], 'manifest': {},},
+            'Function-linkerd':
+                {'api_version': 'openfaas.com/v1', 'kind': 'Function', 'object_name': 'gw-func', 'namespace': 'openfaas-fn', 'image': 'aslanpour/ssd:cpu-tpu-amd64',
+                'labels': {'com.openfaas.scale.min': '1','com.openfaas.scale.max': '1'}, 'annotations': {'linkerd.io/inject': 'enabled'},
+                'constraints': ['kubernetes.io/hostname=master'], 'manifest': {},},
+            'TrafficSplit':
+                {'api_version': 'split.smi-spec.io/v1alpha2', 'kind': 'TrafficSplit', 'object_name': 'my-traffic-split','namespace': 'openfaas-fn',
+                'service': 'gw-func', 'operation': 'safe-patch','manifest': {}, 'backends': [],},
+        }
+    
+    } #variable
+
+#NOTE if True, queues must be already created! and follows the name pattern as queue-worker-functionName. Only works in async.
 multiple_queue=False
 #if true, Linkerd is required for OpenFaaS
 service_mesh=True
 
-gateway_IP = "10.0.0.90"
-openfaas_gateway_port = "31112"
 redis_server_ip= "10.43.189.161" #assume default port is selected as 3679
-#??routes can replace gateway_IP, openfaas_gateway_port, redis_server_ip
-routes = [{'gateway_IP': '10.0.0.90', 
-        'openfaas_gateway_port': '31112', 
-        'function_route': load_balancing[0]['service'] if load_balancing[0]['type'] == 'trafficsplit' else 'func_name',
-        'redis_server_ip': '10.43.189.161'},
-        # {'gateway_IP': '10.0.0.90', 
-        # 'openfaas_gateway_port': '31112', 
-        # 'function_route': load_balancing[1]['service'] if load_balancing[1]['type'] == 'trafficsplit' else 'func_name',
-        # 'redis_server_ip': '10.43.189.161'},
-        # {'gateway_IP': '10.0.0.90', 
-        # 'openfaas_gateway_port': '31112', 
-        # 'function_route': load_balancing[2]['service'] if load_balancing[2]['type'] == 'trafficsplit' else 'func_name',
-        # 'redis_server_ip': '10.43.189.161'},
-        # {'gateway_IP': '10.0.0.90', 
-        # 'openfaas_gateway_port': '31112', 
-        # 'function_route': load_balancing[3]['service'] if load_balancing[3]['type'] == 'trafficsplit' else 'func_name',
-        # 'redis_server_ip': '10.43.189.161'},
-        ]
-
 
 #local #default-kubernetes #random #bin-packing #greedy #shortfaas
-scheduler_name = ["local"]
+scheduler_name = ["local"] #variable
 #zonal categorization by Soc %
 #[0] zone [1] priority [2] max Soc threshold [3] min Soc threshold
 zones = [["rich", 1, 100, 60],
@@ -89,11 +215,7 @@ zones = [["rich", 1, 100, 60],
 #if 1250=100%, then 937.5=75%, 312.5=25% and 125=10%
 
 #plugins and weights for shortfaas scoring
-plugins = [{'energy':100, 'locally':100, 'sticky':30},
-           {'energy':100, 'locally':100, 'sticky':30},
-           {'energy':100, 'locally':100, 'sticky':30},
-           {'energy':100, 'locally':100, 'sticky':30},]
-
+plugins = [{'energy':100, 'locally':100, 'sticky':30}] #variable
 
 #==0 only if scheduler_name=="greedy" and warm_scheduler=True
 #and should be limited just in case function is not locally placed. (not implemented yet this part), so it is applied all the time if used
@@ -101,7 +223,7 @@ plugins = [{'energy':100, 'locally':100, 'sticky':30},
 boot_up_delay = 0   ####
 #scheduler_greedy_config
 sticky = True # it requires offloading=True to be effective
-stickiness = [0.2, 0.2, 0.2, 0.2, 0.2] #20% # it requires offloading=True to be effective #####
+stickiness = [0.2] #variable #20% # it requires offloading=True to be effective #####
 warm_scheduler = False # it requires offloading=True to be effective -- if true, workload will be generated and sent once the node is down.
 
 
@@ -112,14 +234,17 @@ warm_scheduler = False # it requires offloading=True to be effective -- if true,
 cpu_freq_config={"effect": ["LOAD_GENERATOR", "STANDALONE"],"governors": "ondemand",
     "set_min_frequencies": 0, "set_max_frequencies": 0, "set_frequencies": 600000}
 
-cpu_governor = ['ondemand', 'ondemand', 'ondemand']
+cpu_governor = ['ondemand'] #variable
 #??????????????????image name has gpu
 apps = {"ssd": True, "yolo3": False, "irrigation":False, "crop-monitor": False, "short": False}
-apps_image = {"ssd": "aslanpour/ssd:cpu-tpu", "yolo3": "aslanpour/yolo3-quick", "irrigation":"aslanpour/irrigation", "crop-monitor": "aslanpour/crop-monitor", "short": "aslanpour/short"}
+#w5-ssd is just for Nano to pull gpu-based image.??
+apps_image = {"ssd": "aslanpour/ssd:cpu-tpu", "w5-ssd": "aslanpour/ssd:cpu-tpu-gpu", "yolo3": "aslanpour/yolo3-quick", "irrigation":"aslanpour/irrigation", "crop-monitor": "aslanpour/crop-monitor", "short": "aslanpour/short"}
 
 #[WORKLOAD]
-#"static" or "poisson" (concurrently) or "exponential" (interval) or "exponential-poisson"
-Workload_type ="static"
+#"sync" or "static" or "poisson" (concurrently) or "exponential" (interval) or "exponential-poisson"
+workload_type ="sync"
+
+#No workload test: set workload_type ="sync" and concurrency=0
 worker = "thread"  # or "gevent": low CPU usage (~5% improvement) but slower admission (0.098s vs 0.1s) and super difference between the max values.
 seed = 5
 session_enabled = True #if false, workload generator issues a new HTTP connection per request. On a Pi 3, sessions improve admission time by 25%, CPU usage 8% and memory 2% than new HTTP connection per request on Pi 3.
@@ -134,18 +259,20 @@ shapes = {"w1":shape_OFF, "w2":shape_OFF, "w3":shape_OFF, "w4":shape_OFF, "w5": 
 
 #[0]: ssd, [1]: yolo3, [2]: irrigation, [3]: crop-monitor, [4]: short
 #[x][0] iteration [x][1]interval/exponential lambda (lambda~=avg)
-#[x][2]concurrently/poisson lambda (lambda~=avg) [x][3] random seed (def=5)]
+#[x][2]concurrently/poisson lambda (lambda~=avg) [x][3] random seed (def=5)]. In async means x requests (in x threads) per y sec. In sync means x spawners (in threads) sending 1 req each back to back.
 # [x][4] shape, [x][5] worker "thread" or "gevent"
 #in the main.py is w_config = my_app[3] --> w_config[0-3]
 #if static, only set int values ????? otherwise, workload() gives error.
+
+#1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4,5,5,5,5,5,6,6,6,6,6,7,7,7,7,7,8,8,8,8,8,9,9,9,9,9,10,10,10,10,10,
 workload_cfg ={
-"w1":[[1000, 5, 1,seed, shapes["w1"],worker], [10000, 6, 1.9,seed, shapes["w1"],worker], [10000, 10, 1,seed, shapes["w1"],worker], [10000, 1, 1,seed, shapes["w1"],worker], [10000, 1, 1,seed, shapes["w1"],worker]],
-"w2":[[1000, 5, 1,seed, shapes["w2"],worker], [10000, 20, 1.9,seed, shapes["w2"],worker], [10000, 15, 1.0,seed, shapes["w2"],worker], [10000, 1, 1,seed, shapes["w2"],worker], [10000, 1, 1,seed, shapes["w2"],worker]],
-"w3":[[1000, 60, 0.6,seed, shapes["w3"],worker], [10000, 10, 1.9,seed, shapes["w3"],worker], [10000, 8, 1.0,seed, shapes["w3"],worker], [10000, 10, 1,seed, shapes["w3"],worker], [10000, 10, 1,seed, shapes["w3"],worker]],
-"w4":[[1000, 1, 1,seed, shapes["w4"],worker], [10000, 10, 1.9,seed, shapes["w4"],worker], [10000, 8, 1.0,seed, shapes["w4"],worker], [10000, 10, 1,seed, shapes["w4"],worker], [10000, 10, 1,seed, shapes["w4"],worker]],
-"w5":[[1000, 1, 1,seed, shapes["w5"],worker], [10000, 6, 1.9,seed, shapes["w5"],worker], [10000, 5, 1.0,seed, shapes["w5"],worker], [10000, 10, 1,seed, shapes["w5"],worker], [10000, 10, 1,seed, shapes["w5"],worker]],
-"w6":[[1000, 1, 1,seed, shapes["w6"],worker], [10000, 6, 1.9,seed, shapes["w6"],worker], [10000, 5, 1.0,seed, shapes["w6"],worker], [10000, 10, 1,seed, shapes["w6"],worker], [10000, 10, 1,seed, shapes["w6"],worker]],
-"w7":[[1000, 1, 1,seed, shapes["w7"],worker], [10000, 6, 1.9,seed, shapes["w7"],worker], [10000, 5, 1.0,seed, shapes["w7"],worker], [10000, 10, 1,seed, shapes["w7"],worker],[10000, 10, 1,seed, shapes["w7"],worker]],}
+"w1":[[10000, 1, [000],seed, shapes["w1"],worker], [10000, 6, 1.9,seed, shapes["w1"],worker], [10000, 10, 1,seed, shapes["w1"],worker], [10000, 1, 1,seed, shapes["w1"],worker], [10000, 1, 1,seed, shapes["w1"],worker]],
+"w2":[[10000, 1, [8,8,8,8,8],seed, shapes["w2"],worker], [10000, 20, 1.9,seed, shapes["w2"],worker], [10000, 15, 1.0,seed, shapes["w2"],worker], [10000, 1, 1,seed, shapes["w2"],worker], [10000, 1, 1,seed, shapes["w2"],worker]],
+"w3":[[10000, 1, [8,8,8,8,8],seed, shapes["w3"],worker], [10000, 10, 1.9,seed, shapes["w3"],worker], [10000, 8, 1.0,seed, shapes["w3"],worker], [10000, 10, 1,seed, shapes["w3"],worker], [10000, 10, 1,seed, shapes["w3"],worker]],
+"w4":[[10000, 1, [8,8,8,8,8],seed, shapes["w4"],worker], [10000, 10, 1.9,seed, shapes["w4"],worker], [10000, 8, 1.0,seed, shapes["w4"],worker], [10000, 10, 1,seed, shapes["w4"],worker], [10000, 10, 1,seed, shapes["w4"],worker]],
+"w5":[[10000, 1, [8,8,8,8,8],seed, shapes["w5"],worker], [10000, 6, 1.9,seed, shapes["w5"],worker], [10000, 5, 1.0,seed, shapes["w5"],worker], [10000, 10, 1,seed, shapes["w5"],worker], [10000, 10, 1,seed, shapes["w5"],worker]],
+"w6":[[10000, 1, [000],seed, shapes["w6"],worker], [10000, 6, 1.9,seed, shapes["w6"],worker], [10000, 5, 1.0,seed, shapes["w6"],worker], [10000, 10, 1,seed, shapes["w6"],worker], [10000, 10, 1,seed, shapes["w6"],worker]],
+"w7":[[10000, 1, [8,8,8,8,8],seed, shapes["w7"],worker], [10000, 6, 1.9,seed, shapes["w7"],worker], [10000, 5, 1.0,seed, shapes["w7"],worker], [10000, 10, 1,seed, shapes["w7"],worker],[10000, 10, 1,seed, shapes["w7"],worker]],}
 
 #copy chart-latest and chart-profile folders to home directory of master
 profile_chart = ["chart-profile", "~/charts/chart-profile"]
@@ -158,32 +285,27 @@ function_creation_roll_out = 60  # 120
 
 
 #CPU intensity of applications request per nodes per app
-counter=[{"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"10", "short":"5"},
-         {"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"50", "short":"30"},
-         {"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"50", "short":"30"},
-         {"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"50", "short":"30"},
-         {"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"50", "short":"30"},
-         {"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"50", "short":"30"},
-         {"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"50", "short":"30"}]
+counter=[{"ssd": "0", "yolo3":"20", "irrigation":"75", "crop-monitor":"10", "short":"5"}] #variable
 
 monitor_interval=10 #second
-scheduling_interval= [180, 300, 300, 300]  ### second -- default 5 *  60 equivalent to 30 min
+scheduling_interval= [800] #variable  ### second -- default 5 *  60 equivalent to 30 min
 failure_handler_interval=10
-battery_sim_update_interval=30
+battery_sim_update_interval=10
 min_request_generation_interval = 1
 sensor_admission_timeout = 3
-max_request_timeout = 30 #max timeout set for apps, used for timers, failure_handler, etc.
+max_request_timeout = 15 #max timeout was 30 set for apps, used for timers, failure_handler, etc.
 
-intra_test_cooldown = 1 * 60 # 10 between each epoch to wait for workers
+intra_test_cooldown = 6 * 60 # 10 between each epoch to wait for workers
 debug=True #master always True
 max_cpu_capacity = 3600  #### #actual capacity is 4000m millicpu (or millicores), but 10% is deducted for safety net. Jetson nano and Pi 3 and 4 have 4 cores.
-
-initial_battery_charge = 2000
+#initial charge value must be turn in to max_battery_charge if > max_battery_charge???
+initial_battery_charge = 5000
 min_battery_charge = 125 #mwh equals battery charge 10%
-max_battery_charge = [1250,1250,1250,1250] #mwh full battery, 9376 - 20% and scale in 1/6: 1250mwh
+max_battery_charge = [5000]#variable #mwh full battery, 9376 - 20% and scale in 1/6: 1250mwh
 #home dir will be attached before this path by pi-agent
 #pics folder must be already filled with pics
-pics_folder = "/pics/"
+pics_folder = "/pics-83num-resized-half-6mb-max130kb/" # /pics/
+pics_num= 83
 file_storage_folder = "/storage/"
 #home dir comes before
 log_path = "/logs/"
@@ -240,7 +362,7 @@ usb_meter={"master":"",
            "w5":"00:15:A3:00:5A:6F",
            "w6":"",
            "w7":"00:16:A5:00:0E:94"}
-#Mohammad Goudarzi one ""
+
 #broken USB meter: "00:15:A5:00:02:ED", "00:15:A3:00:68:C4"
 #either battery_operated or battery_sim should be enabled
 battery_operated = {"master": False, "w1": False, "w2": False, "w3": False,"w4": False,"w5": False,"w6": False,"w7": False} #means pijuice operated
@@ -269,9 +391,7 @@ plan={
     "test_name": "",
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"MASTER",
-    "gateway_IP":gateway_IP,
-    "openfaas_gateway_port": openfaas_gateway_port,
-    "routes": routes,
+    "load_balancing": load_balancing,
     "debug":True,
     "bluetooth_addr":usb_meter["master"],
     #[0]app name
@@ -285,23 +405,23 @@ plan={
         # nodeAffinity_preferred_sort1,podAntiAffinity_preferred_functionName,
         # podAntiAffinity_required_functionName
     "apps":[
-        ['ssd', apps["ssd"], Workload_type, workload_cfg["w1"][0], 'master-ssd', 'reference', 0, 0,
+        ['ssd', apps["ssd"], workload_type, workload_cfg["w1"][0], 'master-ssd', 'reference', 0, 0,
            [min_replicas["ssd"], max_replicas["ssd"], app_memory_quote["ssd"][0],app_memory_quote["ssd"][1],app_cpu_quote["ssd"][0], app_cpu_quote["ssd"][1], counter[0]["ssd"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-ssd" if multiple_queue else ""), "",0, apps_image["ssd"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['yolo3', apps["yolo3"], Workload_type, workload_cfg["w1"][0], 'master-yolo3', 'reference', 0, 0,
+        ['yolo3', apps["yolo3"], workload_type, workload_cfg["w1"][0], 'master-yolo3', 'reference', 0, 0,
            [min_replicas["yolo3"], max_replicas["yolo3"], app_memory_quote["yolo3"][0],app_memory_quote["yolo3"][1],app_cpu_quote["yolo3"][0], app_cpu_quote["yolo3"][1], counter[0]["yolo3"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-yolo3" if multiple_queue else ""), "",0, apps_image["yolo3"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['irrigation', apps["irrigation"], Workload_type, workload_cfg["w1"][1], 'master-irrigation', 'value', 0, 0,
+        ['irrigation', apps["irrigation"], workload_type, workload_cfg["w1"][1], 'master-irrigation', 'reference', 0, 0,
            [min_replicas["irrigation"], max_replicas["irrigation"], app_memory_quote["irrigation"][0],app_memory_quote["irrigation"][1],app_cpu_quote["irrigation"][0], app_cpu_quote["irrigation"][1], counter[0]["irrigation"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-irrigation" if multiple_queue else ""), "",0, apps_image["irrigation"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['crop-monitor', apps["crop-monitor"], Workload_type, workload_cfg["w1"][2], 'master-crop-monitor', 'value', 0, 0,
+        ['crop-monitor', apps["crop-monitor"], workload_type, workload_cfg["w1"][2], 'master-crop-monitor', 'reference', 0, 0,
            [min_replicas["crop-monitor"], max_replicas["crop-monitor"], app_memory_quote["crop-monitor"][0],app_memory_quote["crop-monitor"][1],app_cpu_quote["crop-monitor"][0], app_cpu_quote["crop-monitor"][1], counter[0]["crop-monitor"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-crop-monitor" if multiple_queue else ""), "",0, apps_image["crop-monitor"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['short', apps["short"], Workload_type, workload_cfg["w1"][3], 'master-short', 'value', 0, 0,
+        ['short', apps["short"], workload_type, workload_cfg["w1"][3], 'master-short', 'reference', 0, 0,
            [min_replicas["short"], max_replicas["short"], app_memory_quote["short"][0],app_memory_quote["short"][1],app_cpu_quote["short"][0], app_cpu_quote["short"][1], counter[0]["short"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-short" if multiple_queue else ""), "",0, apps_image["short"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]]],
@@ -323,6 +443,7 @@ plan={
     "max_cpu_capacity": max_cpu_capacity,
     "log_path": log_path,
     "pics_folder":pics_folder,
+    "pics_num": pics_num,
     "file_storage_folder":file_storage_folder,
     "waitress_threads": waitress_threads,
     "boot_up_delay": boot_up_delay,
@@ -335,9 +456,7 @@ plan={
     "test_name": "",
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
-    "gateway_IP":gateway_IP,
-    "openfaas_gateway_port": openfaas_gateway_port,
-    "routes": routes,
+    "load_balancing": load_balancing,
     "debug":True,
     "bluetooth_addr":usb_meter["w1"],
     #[0]app name
@@ -351,23 +470,23 @@ plan={
         # nodeAffinity_preferred_sort1,podAntiAffinity_preferred_functionName,
         # podAntiAffinity_required_functionName
     "apps":[
-        ['ssd', apps["ssd"], Workload_type, workload_cfg["w1"][0], 'w1-ssd', 'reference', 0, 0,
+        ['ssd', apps["ssd"], workload_type, workload_cfg["w1"][0], 'w1-ssd', 'reference', 0, 0,
            [min_replicas["ssd"], max_replicas["ssd"], app_memory_quote["ssd"][0],app_memory_quote["ssd"][1],app_cpu_quote["ssd"][0], app_cpu_quote["ssd"][1], counter[0]["ssd"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-ssd" if multiple_queue else ""), "",0, apps_image["ssd"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['yolo3', apps["yolo3"], Workload_type, workload_cfg["w1"][0], 'w1-yolo3', 'reference', 0, 0,
+        ['yolo3', apps["yolo3"], workload_type, workload_cfg["w1"][0], 'w1-yolo3', 'reference', 0, 0,
            [min_replicas["yolo3"], max_replicas["yolo3"], app_memory_quote["yolo3"][0],app_memory_quote["yolo3"][1],app_cpu_quote["yolo3"][0], app_cpu_quote["yolo3"][1], counter[0]["yolo3"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-yolo3" if multiple_queue else ""), "",0, apps_image["yolo3"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['irrigation', apps["irrigation"], Workload_type, workload_cfg["w1"][1], 'w1-irrigation', 'value', 0, 0,
+        ['irrigation', apps["irrigation"], workload_type, workload_cfg["w1"][1], 'w1-irrigation', 'reference', 0, 0,
            [min_replicas["irrigation"], max_replicas["irrigation"], app_memory_quote["irrigation"][0],app_memory_quote["irrigation"][1],app_cpu_quote["irrigation"][0], app_cpu_quote["irrigation"][1], counter[0]["irrigation"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-irrigation" if multiple_queue else ""), "",0, apps_image["irrigation"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['crop-monitor', apps["crop-monitor"], Workload_type, workload_cfg["w1"][2], 'w1-crop-monitor', 'value', 0, 0,
+        ['crop-monitor', apps["crop-monitor"], workload_type, workload_cfg["w1"][2], 'w1-crop-monitor', 'reference', 0, 0,
            [min_replicas["crop-monitor"], max_replicas["crop-monitor"], app_memory_quote["crop-monitor"][0],app_memory_quote["crop-monitor"][1],app_cpu_quote["crop-monitor"][0], app_cpu_quote["crop-monitor"][1], counter[0]["crop-monitor"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-crop-monitor" if multiple_queue else ""), "",0, apps_image["crop-monitor"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['short', apps["short"], Workload_type, workload_cfg["w1"][3], 'w1-short', 'value', 0, 0,
+        ['short', apps["short"], workload_type, workload_cfg["w1"][3], 'w1-short', 'reference', 0, 0,
            [min_replicas["short"], max_replicas["short"], app_memory_quote["short"][0],app_memory_quote["short"][1],app_cpu_quote["short"][0], app_cpu_quote["short"][1], counter[0]["short"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-short" if multiple_queue else ""), "",0, apps_image["short"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]]],
@@ -389,6 +508,7 @@ plan={
     "max_cpu_capacity": max_cpu_capacity,
     "log_path": log_path,
     "pics_folder":pics_folder,
+    "pics_num": pics_num,
     "file_storage_folder":file_storage_folder,
     "waitress_threads": waitress_threads,
     "boot_up_delay": boot_up_delay,
@@ -401,9 +521,7 @@ plan={
     "test_name": "",
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
-    "gateway_IP":gateway_IP,
-    "openfaas_gateway_port": openfaas_gateway_port,
-    "routes": routes,
+    "load_balancing": load_balancing,
     "debug":True,
     "bluetooth_addr":usb_meter["w2"],
     #[0]app name
@@ -418,23 +536,23 @@ plan={
         # podAntiAffinity_required_functionName
         #??????unknown refer to profiles in openfaas and is only for filtering maximum of 5 nodes. 
     "apps":[
-        ['ssd', apps["ssd"], Workload_type, workload_cfg["w2"][0], 'w2-ssd', 'reference', 0, 0,
+        ['ssd', apps["ssd"], workload_type, workload_cfg["w2"][0], 'w2-ssd', 'reference', 0, 0,
            [min_replicas["ssd"], max_replicas["ssd"], app_memory_quote["ssd"][0],app_memory_quote["ssd"][1],app_cpu_quote["ssd"][0], app_cpu_quote["ssd"][1], counter[0]["ssd"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-ssd" if multiple_queue else ""), "",0,  apps_image["ssd"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['yolo3', apps["yolo3"], Workload_type, workload_cfg["w2"][0], 'w2-yolo3', 'reference', 0, 0,
+        ['yolo3', apps["yolo3"], workload_type, workload_cfg["w2"][0], 'w2-yolo3', 'reference', 0, 0,
            [min_replicas["yolo3"], max_replicas["yolo3"], app_memory_quote["yolo3"][0],app_memory_quote["yolo3"][1],app_cpu_quote["yolo3"][0], app_cpu_quote["yolo3"][1], counter[0]["yolo3"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-yolo3" if multiple_queue else ""), "",0,  apps_image["yolo3"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['irrigation', apps["irrigation"], Workload_type, workload_cfg["w2"][1], 'w2-irrigation', 'value', 0, 0,
+        ['irrigation', apps["irrigation"], workload_type, workload_cfg["w2"][1], 'w2-irrigation', 'reference', 0, 0,
            [min_replicas["irrigation"], max_replicas["irrigation"], app_memory_quote["irrigation"][0],app_memory_quote["irrigation"][1],app_cpu_quote["irrigation"][0], app_cpu_quote["irrigation"][1], counter[0]["irrigation"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-irrigation" if multiple_queue else ""), "",0, apps_image["irrigation"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['crop-monitor', apps["crop-monitor"], Workload_type, workload_cfg["w2"][2], 'w2-crop-monitor', 'value', 0, 0,
+        ['crop-monitor', apps["crop-monitor"], workload_type, workload_cfg["w2"][2], 'w2-crop-monitor', 'reference', 0, 0,
            [min_replicas["crop-monitor"], max_replicas["crop-monitor"], app_memory_quote["crop-monitor"][0],app_memory_quote["crop-monitor"][1],app_cpu_quote["crop-monitor"][0], app_cpu_quote["crop-monitor"][1], counter[0]["crop-monitor"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-crop-monitor" if multiple_queue else ""), "",0, apps_image["crop-monitor"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['short', apps["short"], Workload_type, workload_cfg["w2"][3], 'w2-short', 'value', 0, 0,
+        ['short', apps["short"], workload_type, workload_cfg["w2"][3], 'w2-short', 'reference', 0, 0,
            [min_replicas["short"], max_replicas["short"], app_memory_quote["short"][0],app_memory_quote["short"][1],app_cpu_quote["short"][0], app_cpu_quote["short"][1], counter[0]["short"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-short" if multiple_queue else ""), "",0, apps_image["short"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]]],
@@ -456,6 +574,7 @@ plan={
     "max_cpu_capacity": max_cpu_capacity,
     "log_path": log_path,
     "pics_folder":pics_folder,
+    "pics_num": pics_num,
     "file_storage_folder":file_storage_folder,
     "waitress_threads": waitress_threads,
     "boot_up_delay": boot_up_delay,
@@ -468,9 +587,7 @@ plan={
     "test_name": "",
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
-    "gateway_IP":gateway_IP,
-    "openfaas_gateway_port": openfaas_gateway_port,
-    "routes": routes,
+    "load_balancing": load_balancing,
     "debug":True,
     "bluetooth_addr":usb_meter["w3"],
     #[0]app name
@@ -484,23 +601,23 @@ plan={
         # nodeAffinity_preferred_sort1,podAntiAffinity_preferred_functionName,
         # podAntiAffinity_required_functionName
     "apps":[
-        ['ssd', apps["ssd"], Workload_type, workload_cfg["w3"][0], 'w3-ssd', 'reference', 0, 0,
+        ['ssd', apps["ssd"], workload_type, workload_cfg["w3"][0], 'w3-ssd', 'reference', 0, 0,
            [min_replicas["ssd"], max_replicas["ssd"], app_memory_quote["ssd"][0],app_memory_quote["ssd"][1],app_cpu_quote["ssd"][0], app_cpu_quote["ssd"][1], counter[0]["ssd"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-ssd" if multiple_queue else ""), "",0, apps_image["ssd"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['yolo3', apps["yolo3"], Workload_type, workload_cfg["w3"][0], 'w3-yolo3', 'reference', 0, 0,
+        ['yolo3', apps["yolo3"], workload_type, workload_cfg["w3"][0], 'w3-yolo3', 'reference', 0, 0,
            [min_replicas["yolo3"], max_replicas["yolo3"], app_memory_quote["yolo3"][0],app_memory_quote["yolo3"][1],app_cpu_quote["yolo3"][0], app_cpu_quote["yolo3"][1], counter[0]["yolo3"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-yolo3" if multiple_queue else ""), "",0, apps_image["yolo3"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['irrigation', apps["irrigation"], Workload_type, workload_cfg["w3"][1], 'w3-irrigation', 'value', 0, 0,
+        ['irrigation', apps["irrigation"], workload_type, workload_cfg["w3"][1], 'w3-irrigation', 'reference', 0, 0,
            [min_replicas["irrigation"], max_replicas["irrigation"], app_memory_quote["irrigation"][0],app_memory_quote["irrigation"][1],app_cpu_quote["irrigation"][0], app_cpu_quote["irrigation"][1], counter[0]["irrigation"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-irrigation" if multiple_queue else ""), "",0, apps_image["irrigation"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['crop-monitor', apps["crop-monitor"], Workload_type, workload_cfg["w3"][2], 'w3-crop-monitor', 'value', 0, 0,
+        ['crop-monitor', apps["crop-monitor"], workload_type, workload_cfg["w3"][2], 'w3-crop-monitor', 'reference', 0, 0,
            [min_replicas["crop-monitor"], max_replicas["crop-monitor"], app_memory_quote["crop-monitor"][0],app_memory_quote["crop-monitor"][1],app_cpu_quote["crop-monitor"][0], app_cpu_quote["crop-monitor"][1], counter[0]["crop-monitor"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-crop-monitor" if multiple_queue else ""), "",0, apps_image["crop-monitor"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['short', apps["short"], Workload_type, workload_cfg["w3"][3], 'w3-short', 'value', 0, 0,
+        ['short', apps["short"], workload_type, workload_cfg["w3"][3], 'w3-short', 'reference', 0, 0,
            [min_replicas["short"], max_replicas["short"], app_memory_quote["short"][0],app_memory_quote["short"][1],app_cpu_quote["short"][0], app_cpu_quote["short"][1], counter[0]["short"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-short" if multiple_queue else ""), "",0, apps_image["short"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]]],
@@ -522,6 +639,7 @@ plan={
     "max_cpu_capacity": max_cpu_capacity,
     "log_path": log_path,
     "pics_folder":pics_folder,
+    "pics_num": pics_num,
     "file_storage_folder":file_storage_folder,
     "waitress_threads": waitress_threads,
     "boot_up_delay": boot_up_delay,
@@ -534,9 +652,7 @@ plan={
     "test_name": "",
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
-    "gateway_IP":gateway_IP,
-    "openfaas_gateway_port": openfaas_gateway_port,
-    "routes": routes,
+    "load_balancing": load_balancing,
     "debug":True,
     "bluetooth_addr":usb_meter["w4"],
     #[0]app name
@@ -550,23 +666,23 @@ plan={
         # nodeAffinity_preferred_sort1,podAntiAffinity_preferred_functionName,
         # podAntiAffinity_required_functionName
     "apps":[
-        ['ssd', apps["ssd"], Workload_type, workload_cfg["w4"][0], 'w4-ssd', 'reference', 0, 0,
+        ['ssd', apps["ssd"], workload_type, workload_cfg["w4"][0], 'w4-ssd', 'reference', 0, 0,
            [min_replicas["ssd"], max_replicas["ssd"], app_memory_quote["ssd"][0],app_memory_quote["ssd"][1],app_cpu_quote["ssd"][0], app_cpu_quote["ssd"][1], counter[0]["ssd"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-ssd" if multiple_queue else ""), "",0, apps_image["ssd"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['yolo3', apps["yolo3"], Workload_type, workload_cfg["w4"][0], 'w4-yolo3', 'reference', 0, 0,
+        ['yolo3', apps["yolo3"], workload_type, workload_cfg["w4"][0], 'w4-yolo3', 'reference', 0, 0,
            [min_replicas["yolo3"], max_replicas["yolo3"], app_memory_quote["yolo3"][0],app_memory_quote["yolo3"][1],app_cpu_quote["yolo3"][0], app_cpu_quote["yolo3"][1], counter[0]["yolo3"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-yolo3" if multiple_queue else ""), "",0, apps_image["yolo3"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['irrigation', apps["irrigation"], Workload_type, workload_cfg["w4"][1], 'w4-irrigation', 'value', 0, 0,
+        ['irrigation', apps["irrigation"], workload_type, workload_cfg["w4"][1], 'w4-irrigation', 'reference', 0, 0,
            [min_replicas["irrigation"], max_replicas["irrigation"], app_memory_quote["irrigation"][0],app_memory_quote["irrigation"][1],app_cpu_quote["irrigation"][0], app_cpu_quote["irrigation"][1], counter[0]["irrigation"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-irrigation" if multiple_queue else ""), "",0, apps_image["irrigation"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['crop-monitor', apps["crop-monitor"], Workload_type, workload_cfg["w4"][2], 'w4-crop-monitor', 'value', 0, 0,
+        ['crop-monitor', apps["crop-monitor"], workload_type, workload_cfg["w4"][2], 'w4-crop-monitor', 'reference', 0, 0,
            [min_replicas["crop-monitor"], max_replicas["crop-monitor"], app_memory_quote["crop-monitor"][0],app_memory_quote["crop-monitor"][1],app_cpu_quote["crop-monitor"][0], app_cpu_quote["crop-monitor"][1], counter[0]["crop-monitor"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-crop-monitor" if multiple_queue else ""), "",0, apps_image["crop-monitor"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['short', apps["short"], Workload_type, workload_cfg["w4"][3], 'w4-short', 'value', 0, 0,
+        ['short', apps["short"], workload_type, workload_cfg["w4"][3], 'w4-short', 'reference', 0, 0,
            [min_replicas["short"], max_replicas["short"], app_memory_quote["short"][0],app_memory_quote["short"][1],app_cpu_quote["short"][0], app_cpu_quote["short"][1], counter[0]["short"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-short" if multiple_queue else ""), "",0, apps_image["short"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]]],
@@ -588,6 +704,7 @@ plan={
     "max_cpu_capacity": max_cpu_capacity,
     "log_path": log_path,
     "pics_folder":pics_folder,
+    "pics_num": pics_num,
     "file_storage_folder":file_storage_folder,
     "waitress_threads": waitress_threads,
     "boot_up_delay": boot_up_delay,
@@ -600,9 +717,7 @@ plan={
     "test_name": "",
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
-    "gateway_IP":gateway_IP,
-    "openfaas_gateway_port": openfaas_gateway_port,
-    "routes": routes,
+    "load_balancing": load_balancing,
     "debug":True,
     "bluetooth_addr":usb_meter["w5"],
     #[0]app name
@@ -616,23 +731,23 @@ plan={
         # nodeAffinity_preferred_sort1,podAntiAffinity_preferred_functionName,
         # podAntiAffinity_required_functionName
     "apps":[
-        ['ssd', apps["ssd"], Workload_type, workload_cfg["w5"][0], 'w5-ssd', 'reference', 0, 0,
+        ['ssd', apps["ssd"], workload_type, workload_cfg["w5"][0], 'w5-ssd', 'reference', 0, 0,
            [min_replicas["ssd"], max_replicas["ssd"], app_memory_quote["ssd"][0],app_memory_quote["ssd"][1],app_cpu_quote["ssd"][0], app_cpu_quote["ssd"][1], counter[0]["ssd"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-ssd" if multiple_queue else ""), "",0, apps_image["ssd"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['yolo3', apps["yolo3"], Workload_type, workload_cfg["w5"][0], 'w5-yolo3', 'reference', 0, 0,
+        ['yolo3', apps["yolo3"], workload_type, workload_cfg["w5"][0], 'w5-yolo3', 'reference', 0, 0,
            [min_replicas["yolo3"], max_replicas["yolo3"], app_memory_quote["yolo3"][0],app_memory_quote["yolo3"][1],app_cpu_quote["yolo3"][0], app_cpu_quote["yolo3"][1], counter[0]["yolo3"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-yolo3" if multiple_queue else ""), "",0, apps_image["yolo3"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['irrigation', apps["irrigation"], Workload_type, workload_cfg["w5"][1], 'w5-irrigation', 'value', 0, 0,
+        ['irrigation', apps["irrigation"], workload_type, workload_cfg["w5"][1], 'w5-irrigation', 'reference', 0, 0,
            [min_replicas["irrigation"], max_replicas["irrigation"], app_memory_quote["irrigation"][0],app_memory_quote["irrigation"][1],app_cpu_quote["irrigation"][0], app_cpu_quote["irrigation"][1], counter[0]["irrigation"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-irrigation" if multiple_queue else ""), "",0, apps_image["irrigation"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['crop-monitor', apps["crop-monitor"], Workload_type, workload_cfg["w5"][2], 'w5-crop-monitor', 'value', 0, 0,
+        ['crop-monitor', apps["crop-monitor"], workload_type, workload_cfg["w5"][2], 'w5-crop-monitor', 'reference', 0, 0,
            [min_replicas["crop-monitor"], max_replicas["crop-monitor"], app_memory_quote["crop-monitor"][0],app_memory_quote["crop-monitor"][1],app_cpu_quote["crop-monitor"][0], app_cpu_quote["crop-monitor"][1], counter[0]["crop-monitor"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-crop-monitor" if multiple_queue else ""), "",0, apps_image["crop-monitor"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['short', apps["short"], Workload_type, workload_cfg["w5"][3], 'w5-short', 'value', 0, 0,
+        ['short', apps["short"], workload_type, workload_cfg["w5"][3], 'w5-short', 'reference', 0, 0,
            [min_replicas["short"], max_replicas["short"], app_memory_quote["short"][0],app_memory_quote["short"][1],app_cpu_quote["short"][0], app_cpu_quote["short"][1], counter[0]["short"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-short" if multiple_queue else ""), "",0, apps_image["short"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],],
@@ -654,6 +769,7 @@ plan={
     "max_cpu_capacity": max_cpu_capacity,
     "log_path": log_path,
     "pics_folder":pics_folder,
+    "pics_num": pics_num,
     "file_storage_folder":file_storage_folder,
     "waitress_threads": waitress_threads,
     "boot_up_delay": boot_up_delay,
@@ -666,9 +782,7 @@ plan={
     "test_name": "",
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
-    "gateway_IP":gateway_IP,
-    "openfaas_gateway_port": openfaas_gateway_port,
-    "routes": routes,
+    "load_balancing": load_balancing,
     "debug":True,
     "bluetooth_addr":usb_meter["w6"],
     #[0]app name
@@ -682,23 +796,23 @@ plan={
         # nodeAffinity_preferred_sort1,podAntiAffinity_preferred_functionName,
         # podAntiAffinity_required_functionName
     "apps":[
-        ['ssd', apps["ssd"], Workload_type, workload_cfg["w6"][0], 'w6-ssd', 'reference', 0, 0,
+        ['ssd', apps["ssd"], workload_type, workload_cfg["w6"][0], 'w6-ssd', 'reference', 0, 0,
            [min_replicas["ssd"], max_replicas["ssd"], app_memory_quote["ssd"][0],app_memory_quote["ssd"][1],app_cpu_quote["ssd"][0], app_cpu_quote["ssd"][1], counter[0]["ssd"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-ssd" if multiple_queue else ""), "",0, apps_image["ssd"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['yolo3', apps["yolo3"], Workload_type, workload_cfg["w6"][0], 'w6-yolo3', 'reference', 0, 0,
+        ['yolo3', apps["yolo3"], workload_type, workload_cfg["w6"][0], 'w6-yolo3', 'reference', 0, 0,
            [min_replicas["yolo3"], max_replicas["yolo3"], app_memory_quote["yolo3"][0],app_memory_quote["yolo3"][1],app_cpu_quote["yolo3"][0], app_cpu_quote["yolo3"][1], counter[0]["yolo3"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-yolo3" if multiple_queue else ""), "",0, apps_image["yolo3"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['irrigation', apps["irrigation"], Workload_type, workload_cfg["w6"][1], 'w6-irrigation', 'value', 0, 0,
+        ['irrigation', apps["irrigation"], workload_type, workload_cfg["w6"][1], 'w6-irrigation', 'reference', 0, 0,
            [min_replicas["irrigation"], max_replicas["irrigation"], app_memory_quote["irrigation"][0],app_memory_quote["irrigation"][1],app_cpu_quote["irrigation"][0], app_cpu_quote["irrigation"][1], counter[0]["irrigation"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-irrigation" if multiple_queue else ""), "",0, apps_image["irrigation"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['crop-monitor', apps["crop-monitor"], Workload_type, workload_cfg["w6"][2], 'w6-crop-monitor', 'value', 0, 0,
+        ['crop-monitor', apps["crop-monitor"], workload_type, workload_cfg["w6"][2], 'w6-crop-monitor', 'reference', 0, 0,
            [min_replicas["crop-monitor"], max_replicas["crop-monitor"], app_memory_quote["crop-monitor"][0],app_memory_quote["crop-monitor"][1],app_cpu_quote["crop-monitor"][0], app_cpu_quote["crop-monitor"][1], counter[0]["crop-monitor"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-crop-monitor" if multiple_queue else ""), "",0, apps_image["crop-monitor"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['short', apps["short"], Workload_type, workload_cfg["w6"][3], 'w6-short', 'value', 0, 0,
+        ['short', apps["short"], workload_type, workload_cfg["w6"][3], 'w6-short', 'reference', 0, 0,
            [min_replicas["short"], max_replicas["short"], app_memory_quote["short"][0],app_memory_quote["short"][1],app_cpu_quote["short"][0], app_cpu_quote["short"][1], counter[0]["short"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-short" if multiple_queue else ""), "",0, apps_image["short"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],],
@@ -720,6 +834,7 @@ plan={
     "max_cpu_capacity": max_cpu_capacity,
     "log_path": log_path,
     "pics_folder":pics_folder,
+    "pics_num": pics_num,
     "file_storage_folder":file_storage_folder,
     "waitress_threads": waitress_threads,
     "boot_up_delay": boot_up_delay,
@@ -731,9 +846,7 @@ plan={
     "test_name": "",
     #MONITOR #LOAD_GENERATOR #STANDALONE #SCHEDULER
     "node_role":"LOAD_GENERATOR",
-    "gateway_IP":gateway_IP,
-    "openfaas_gateway_port": openfaas_gateway_port,
-    "routes": routes,
+    "load_balancing": load_balancing,
     "debug":True,
     "bluetooth_addr":usb_meter["w7"],
     #[0]app name
@@ -747,23 +860,23 @@ plan={
         # nodeAffinity_preferred_sort1,podAntiAffinity_preferred_functionName,
         # podAntiAffinity_required_functionName
     "apps":[
-        ['ssd', apps["ssd"], Workload_type, workload_cfg["w7"][0], 'w7-ssd', 'reference', 0, 0,
+        ['ssd', apps["ssd"], workload_type, workload_cfg["w7"][0], 'w7-ssd', 'reference', 0, 0,
            [min_replicas["ssd"], max_replicas["ssd"], app_memory_quote["ssd"][0],app_memory_quote["ssd"][1],app_cpu_quote["ssd"][0], app_cpu_quote["ssd"][1], counter[0]["ssd"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-ssd" if multiple_queue else ""), "",0, apps_image["ssd"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['yolo3', apps["yolo3"], Workload_type, workload_cfg["w7"][0], 'w7-yolo3', 'reference', 0, 0,
+        ['yolo3', apps["yolo3"], workload_type, workload_cfg["w7"][0], 'w7-yolo3', 'reference', 0, 0,
            [min_replicas["yolo3"], max_replicas["yolo3"], app_memory_quote["yolo3"][0],app_memory_quote["yolo3"][1],app_cpu_quote["yolo3"][0], app_cpu_quote["yolo3"][1], counter[0]["yolo3"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled") , ("queue-worker-yolo3" if multiple_queue else ""), "",0, apps_image["yolo3"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['irrigation', apps["irrigation"], Workload_type, workload_cfg["w7"][1], 'w7-irrigation', 'value', 0, 0,
+        ['irrigation', apps["irrigation"], workload_type, workload_cfg["w7"][1], 'w7-irrigation', 'reference', 0, 0,
            [min_replicas["irrigation"], max_replicas["irrigation"], app_memory_quote["irrigation"][0],app_memory_quote["irrigation"][1],app_cpu_quote["irrigation"][0], app_cpu_quote["irrigation"][1], counter[0]["irrigation"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-irrigation" if multiple_queue else ""), "",0, apps_image["irrigation"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['crop-monitor', apps["crop-monitor"], Workload_type, workload_cfg["w7"][2], 'w7-crop-monitor', 'value', 0, 0,
+        ['crop-monitor', apps["crop-monitor"], workload_type, workload_cfg["w7"][2], 'w7-crop-monitor', 'reference', 0, 0,
            [min_replicas["crop-monitor"], max_replicas["crop-monitor"], app_memory_quote["crop-monitor"][0],app_memory_quote["crop-monitor"][1],app_cpu_quote["crop-monitor"][0], app_cpu_quote["crop-monitor"][1], counter[0]["crop-monitor"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-crop-monitor" if multiple_queue else ""), "",0, apps_image["crop-monitor"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],
-        ['short', apps["short"], Workload_type, workload_cfg["w7"][3], 'w7-short', 'value', 0, 0,
+        ['short', apps["short"], workload_type, workload_cfg["w7"][3], 'w7-short', 'reference', 0, 0,
            [min_replicas["short"], max_replicas["short"], app_memory_quote["short"][0],app_memory_quote["short"][1],app_cpu_quote["short"][0], app_cpu_quote["short"][1], counter[0]["short"], redis_server_ip, "3679","15s","15s","15s","15s",
             ("enabled" if service_mesh else "disabled"), ("queue-worker-short" if multiple_queue else ""), "",0, apps_image["short"]],
              ["unknown", "unknown","unknown", "unknown", "unknown", "unknown", "unknown", "unknown"]],],
@@ -785,6 +898,7 @@ plan={
     "max_cpu_capacity": max_cpu_capacity,
     "log_path": log_path,
     "pics_folder":pics_folder,
+    "pics_num": pics_num,
     "file_storage_folder":file_storage_folder,
     "waitress_threads": waitress_threads,
     "boot_up_delay": boot_up_delay,

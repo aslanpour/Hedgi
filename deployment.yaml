@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: envoy
+  namespace: openfaas-fn
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: envoy-test
+  template:
+    metadata:
+      labels:
+        app: envoy-test
+      annotations:
+        revision: "230"
+    spec:
+      #The node that has TPU and/or GPU
+      nodeName: master
+      containers:
+      - name: envoy
+        image: envoyproxy/envoy:v1.24.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9000
+        env:
+        - name: MODEL_PRE_LOAD
+          value: "no"
+        - name: GREETING
+          value: "Warm Greeting"
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_IPS
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIPs
+        - name: POD_HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        securityContext:
+          # --privileged
+          privileged: true
+          #--user root
+          # runAsUser: 0
+        #/dev/usb/bus
+        volumeMounts:
+        - mountPath: /dev/bus/usb
+          name: usb-devices
+        - mountPath: /etc/envoy/envoy.yaml
+          name: envoy-config
+      volumes:
+      - name: usb-devices
+        hostPath:
+          path: /dev/bus/usb
+      - name: envoy-config
+        hostPath:
+          path: /home/ubuntu/envoy.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: envoy
+  namespace: openfaas-fn
+spec:
+  clusterIP: 10.43.10.10
+  clusterIPs:
+  - 10.43.10.10
+  selector:
+    app: envoy-test
+  ports:
+  - protocol: TCP
+    port: 9000
+    targetPort: 9000
